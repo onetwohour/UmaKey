@@ -17,7 +17,7 @@ is_run = False
 # 특정 프로그램의 창 제목과 키와 색상 매핑 설정
 window_title = "umamusume"
 key_mapping = {
-    'Space': [99,182,0], #[140, 208, 61],     # 초록버튼
+    'Space': [99,182,0],        # 초록버튼
     '`':     [231, 231, 236],   # 흰 버튼
     'Q':     [124, 203, 42],    # 휴식
     'W':     [41, 122, 207],    # 트레이닝
@@ -137,11 +137,13 @@ class AutoClicker:
         # C++ 프로그램의 출력을 읽어 키보드 입력 추출
         while is_run:
             # 바이트 단위로 데이터를 읽어옴
-            byte_data = self.cpp_process.stdout.readline()
-            if not byte_data:
+            byte_data = str(self.cpp_process.stdout.readline())
+            t, text = byte_data.split(' ')
+            if int(time.time() * 1000) - int(t) > 10:
+                continue
+            if not text[:-1]:
                 break  # 프로그램이 종료되면 종료
-            # 바이트 데이터를 역순으로 정수로 변환하여 키 입력 값으로 출력
-            self.on_keyboard_event(int(byte_data[:-1]))
+            self.on_keyboard_event(int(text[:-1]))
 
     def on_keyboard_event(self, byte_data):
         key = self.key_mapping.get(match_byte_to_key(byte_data))

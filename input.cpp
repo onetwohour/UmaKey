@@ -51,7 +51,7 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
             DWORD vkCode = kbStruct->vkCode;
             if (kbStruct->dwExtraInfo != 3000)
             {
-                std::cout << vkCode << std::endl << std::flush;
+                std::cout << now.count() << ' ' << vkCode << '\n' << std::flush;
                 return 1;
             }
         }
