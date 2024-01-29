@@ -4,9 +4,9 @@ from win32con import VK_LSHIFT, VK_RSHIFT, VK_LCONTROL, VK_RCONTROL
 import win32api
 import numpy as np
 import cv2
-import pygetwindow as gw
 import subprocess
 import time
+import os
 from PIL import ImageGrab
 from ctypes import windll
 user32 = windll.user32
@@ -76,8 +76,14 @@ class ColorFinder:
         self.hwnd = hwnd
         self.max_height = 0
         self.max_width = 0
+        self.timer = 0
+        self.frequency = 0.1
 
     def find_color(self, target_color, tolerance):
+        if time.time() - self.timer < self.frequency:
+            return None, None
+        self.timer = time.time()
+
         left, top, right, bottom = win32gui.GetWindowRect(self.hwnd)
         self.max_height = int((bottom - top) // (5 / 2))
         self.max_width = (right - left) // 2
@@ -93,8 +99,7 @@ class ColorFinder:
 
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
-        contours = [*contours]
-        contours = [contour for contour in contours if cv2.boundingRect(contour)[2] <= self.max_width and cv2.boundingRect(contour)[3] <= self.max_height]
+        contours = [contour for contour in [*contours] if cv2.boundingRect(contour)[2] <= self.max_width and cv2.boundingRect(contour)[3] <= self.max_height]
         if contours == []:
             return None, None
 
@@ -122,53 +127,50 @@ class AutoClicker:
 
         if self.window_handler == None:
             self.window_handler = WindowHandler(window_title)
-        
-        while is_run:
-            try:
-                gw.getWindowsWithTitle(window_title)[0].activate()
-            except:
-                continue
 
-            # C++ 프로그램 실행
-            if self.cpp_process == None:
-                self.cpp_process = subprocess.Popen("./_internal/input.exe", stdout=subprocess.PIPE, bufsize=1, universal_newlines=True)
-            break
+        # C++ 프로그램 실행
+        if self.cpp_process == None:
+            self.cpp_process = subprocess.Popen(f"{os.path.join(os.getcwd(), '_internal', 'input.exe')}", stdout=subprocess.PIPE, bufsize=1, universal_newlines=True)
 
         # C++ 프로그램의 출력을 읽어 키보드 입력 추출
         while is_run:
+            if not win32gui.IsWindow(self.window_handler.hwnd):
+                self.cpp_process.terminate()
+                del self.window_handler
+                self.window_handler = WindowHandler(window_title)
+                self.cpp_process = subprocess.Popen(f"{os.path.join(os.getcwd(), '_internal', 'input.exe')}", stdout=subprocess.PIPE, bufsize=1, universal_newlines=True)
+            
             # 바이트 단위로 데이터를 읽어옴
-            byte_data = str(self.cpp_process.stdout.readline())
-            if not byte_data:
-                continue  # 프로그램이 종료되면 종료
+            byte_data = self.cpp_process.stdout.readline()
             t, text = byte_data.split(' ')
             if int(time.time() * 1000) - int(t) > 10:
                 continue
             self.on_keyboard_event(int(text[:-1]))
 
     def on_keyboard_event(self, byte_data):
-        key = self.key_mapping.get(match_byte_to_key(byte_data))
-        if key != None and self.window_handler.is_window_foreground():
-            if type(key) == list: # 색깔 기반
-                self.color_finder = ColorFinder(self.window_handler.hwnd)
-                cx, cy = self.color_finder.find_color(key, self.tolerance)
+        if self.window_handler.is_window_foreground():
+            key = self.key_mapping.get(match_byte_to_key(byte_data))
+            if key != None:
+                if type(key) == list: # 색깔 기반
+                    self.color_finder = ColorFinder(self.window_handler.hwnd)
+                    cx, cy = self.color_finder.find_color(key, self.tolerance)
 
-                if cx is not None and cy is not None:
-                    self.click(cx, cy)
-                    cx = cy = None
-            elif type(key) == tuple: # 좌표 기반
-                self.click(*key)
-            elif type(key) == int: # 단순 매핑
-                self.keyboard(key)
-            elif key == 'Drag': # 특수기능
-                left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
-                self.click((left + right) // 2, (top + bottom) // 2)
-                for i in range(49, 54):
-                    self.keyboard(i)
-                    time.sleep(0.1)
-            return True 
-        else:
-            win32api.keybd_event(byte_data, 0, 0, 3000)
-            return False
+                    if cx is not None and cy is not None:
+                        self.click(cx, cy)
+                        cx = cy = None
+                elif type(key) == tuple: # 좌표 기반
+                    self.click(*key)
+                elif type(key) == int: # 단순 매핑
+                    self.keyboard(key)
+                elif key == 'Drag': # 특수기능
+                    left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
+                    self.click((left + right) // 2, (top + bottom) // 2)
+                    for i in range(49, 54):
+                        self.keyboard(i)
+                        time.sleep(0.1)
+                return True 
+        win32api.keybd_event(byte_data, 0, 0, 3000)
+        return False
             
     def keyboard(self, code):
         win32api.keybd_event(code, 0, 0, 3000)

@@ -46,6 +46,8 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
 
     if (nCode == HC_ACTION) {
         KBDLLHOOKSTRUCT* kbStruct = reinterpret_cast<KBDLLHOOKSTRUCT*>(lParam);
+        if (kbStruct == nullptr || &kbStruct->vkCode == nullptr)
+            return -1;
         // 키보드 이벤트가 Key Down일 때만 처리
         if (wParam == WM_KEYDOWN) {
             DWORD vkCode = kbStruct->vkCode;
