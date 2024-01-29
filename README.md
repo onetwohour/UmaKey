@@ -1,4 +1,4 @@
-# umamusume-mapping
+# UmaKey
 
 ## 우마무스메 프리티 더비 for kakao with keyboard 프로젝트
 
@@ -49,6 +49,12 @@
 ### ***주의***
 
 ***반드시 관리자 권한으로 실행할 것. 아니면 키보드 입력을 받지 못한다.***
+
+코드 실행 시 필요한 패키지
+
+```
+pip install pystray pillow pygetwindow opencv-python-headless numpy pywin32
+```
 
 ---
 
