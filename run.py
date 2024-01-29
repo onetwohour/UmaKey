@@ -11,7 +11,7 @@ title = 'UmaKey'
 def is_process_running(process_name):
     result = subprocess.run(["tasklist", "/FI", f"IMAGENAME eq {process_name}.exe"], capture_output=True, text=True)
     output = result.stdout
-    return process_name.lower() in output.lower()
+    return output.lower().count(process_name.lower()) > 1
 
 def action():
     global text
