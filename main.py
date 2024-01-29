@@ -83,7 +83,7 @@ class ColorFinder:
 
         img = ImageGrab.grab(all_screens=True)
         img = np.array(img)
-        img = img[top + self.max_height:bottom, left + 100:right - 100]
+        img = img[top + self.max_height:bottom, left:right]
 
         lower_bound = np.clip(np.array([target_color[0] - tolerance, target_color[1] - tolerance, target_color[2] - tolerance]), 0, 255)
         upper_bound = np.clip(np.array([target_color[0] + tolerance, target_color[1] + tolerance, target_color[2] + tolerance]), 0, 255)
@@ -99,7 +99,7 @@ class ColorFinder:
         max_contour = max(contours, key=cv2.contourArea)
         M = cv2.moments(max_contour)
         if M['m00'] != 0:
-            cx = int(M['m10'] / M['m00']) + left + 100
+            cx = int(M['m10'] / M['m00']) + left
             cy = int(M['m01'] / M['m00']) + top + self.max_height
 
             return cx, cy
@@ -129,7 +129,7 @@ class AutoClicker:
 
             # C++ 프로그램 실행
             if self.cpp_process == None:
-                self.cpp_process = subprocess.Popen("input.exe", stdin=subprocess.PIPE, stdout=subprocess.PIPE, bufsize=1, universal_newlines=True)
+                self.cpp_process = subprocess.Popen("input.exe", stdout=subprocess.PIPE, bufsize=1, universal_newlines=True)
             break
 
         # C++ 프로그램의 출력을 읽어 키보드 입력 추출
@@ -167,7 +167,6 @@ class AutoClicker:
             return False
             
     def keyboard(self, code):
-        print(code)
         win32api.keybd_event(code, 0, 0, 3000)
         win32api.keybd_event(code, 0, win32con.KEYEVENTF_KEYUP, 3000)
 
@@ -177,7 +176,6 @@ class AutoClicker:
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, x, y, 0, 0)
 
     def __del__(self):
-        print("exit")
         if self.cpp_process != None:
             self.cpp_process.terminate()
 
@@ -188,6 +186,9 @@ class AutoClicker:
             self.run()
         elif self.cpp_process != None:
             self.cpp_process.terminate()
+            self.cpp_process = None
+            del self.window_handler
+            self.window_handler = None
 
 if __name__ == '__main__':
     auto_clicker = AutoClicker(key_mapping)

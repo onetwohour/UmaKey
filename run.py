@@ -13,6 +13,10 @@ def action():
     icon.update_menu()
 
 def exit():
+    global auto_clicker, icon
+    del auto_clicker
+    icon.stop()
+    del icon
     os._exit(0)
 
 if __name__ == '__main__':
