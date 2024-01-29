@@ -60,29 +60,26 @@ def match_byte_to_key(byte_data):
     return byte_to_key.get(byte_data)
 
 class WindowHandler:
-    def __init__(self, window_title):
-        self.window_title = window_title
+    def __init__(self):
         self.hwnd = 0
         while self.hwnd == 0 and is_run:
             self.hwnd = win32gui.FindWindow(None, window_title)
             time.sleep(0.5)
 
     def is_window_foreground(self):
-        foreground_window = win32gui.GetForegroundWindow()
-        return foreground_window == self.hwnd
+        return self.hwnd == win32gui.GetForegroundWindow()
 
 class ColorFinder:
-    def __init__(self, hwnd):
+    def __init__(self, hwnd, timer):
         self.hwnd = hwnd
         self.max_height = 0
         self.max_width = 0
-        self.timer = 0
-        self.frequency = 0.1
+        self.timer = timer
+        self.frequency = 0.25
 
     def find_color(self, target_color, tolerance):
         if time.time() - self.timer < self.frequency:
             return None, None
-        self.timer = time.time()
 
         left, top, right, bottom = win32gui.GetWindowRect(self.hwnd)
         self.max_height = int((bottom - top) // (5 / 2))
@@ -101,7 +98,7 @@ class ColorFinder:
         
         contours = [contour for contour in [*contours] if cv2.boundingRect(contour)[2] <= self.max_width and cv2.boundingRect(contour)[3] <= self.max_height]
         if contours == []:
-            return None, None
+            return False, False
 
         max_contour = max(contours, key=cv2.contourArea)
         M = cv2.moments(max_contour)
@@ -111,7 +108,7 @@ class ColorFinder:
 
             return cx, cy
         else:
-            return None, None
+            return False, False
 
 class AutoClicker:
     def __init__(self, key_mapping=key_mapping, tolerance=10):
@@ -120,13 +117,16 @@ class AutoClicker:
         self.key_mapping = key_mapping
         self.tolerance = tolerance
         self.cpp_process = None
+        self.prev_data = (0, 0)
+        self.timer = 0
 
     def run(self):
         if not is_run:
             return
+        self.timer = time.time()
 
         if self.window_handler == None:
-            self.window_handler = WindowHandler(window_title)
+            self.window_handler = WindowHandler()
 
         # C++ 프로그램 실행
         if self.cpp_process == None:
@@ -137,27 +137,34 @@ class AutoClicker:
             if not win32gui.IsWindow(self.window_handler.hwnd):
                 self.cpp_process.terminate()
                 del self.window_handler
-                self.window_handler = WindowHandler(window_title)
+                self.window_handler = WindowHandler()
                 self.cpp_process = subprocess.Popen(f"{os.path.join(os.getcwd(), '_internal', 'input.exe')}", stdout=subprocess.PIPE, bufsize=1, universal_newlines=True)
             
             # 바이트 단위로 데이터를 읽어옴
             byte_data = self.cpp_process.stdout.readline()
             t, text = byte_data.split(' ')
-            if int(time.time() * 1000) - int(t) > 10:
+            if int(time.time() * 1000) - int(t) > 100:
                 continue
             self.on_keyboard_event(int(text[:-1]))
 
     def on_keyboard_event(self, byte_data):
         if self.window_handler.is_window_foreground():
-            key = self.key_mapping.get(match_byte_to_key(byte_data))
+            if self.prev_data[0] == byte_data:
+                key = self.prev_data[1]
+            else:
+                key = self.key_mapping.get(match_byte_to_key(byte_data))
+                self.prev_data = byte_data, key
             if key != None:
                 if type(key) == list: # 색깔 기반
-                    self.color_finder = ColorFinder(self.window_handler.hwnd)
+                    self.color_finder = ColorFinder(self.window_handler.hwnd, self.timer)
                     cx, cy = self.color_finder.find_color(key, self.tolerance)
 
-                    if cx is not None and cy is not None:
-                        self.click(cx, cy)
-                        cx = cy = None
+                    if cx != None and cy != None:
+                        if cx or cy:
+                            self.click(cx, cy)
+                            cx = cy = None
+                        self.timer = time.time()
+
                 elif type(key) == tuple: # 좌표 기반
                     self.click(*key)
                 elif type(key) == int: # 단순 매핑
@@ -184,6 +191,7 @@ class AutoClicker:
     def __del__(self):
         if self.cpp_process != None:
             self.cpp_process.terminate()
+        if self.window_handler != None:
             del self.window_handler
 
     def toggle(self):

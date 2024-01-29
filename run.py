@@ -25,10 +25,9 @@ def action():
 
 def exit():
     global auto_clicker, icon
-    auto_clicker.__del__() # 명시적 삭제
-    del auto_clicker
+    auto_clicker.__del__()
     icon.stop()
-    del icon
+    del auto_clicker, icon
     os._exit(0)
 
 if __name__ == '__main__':
