@@ -65,6 +65,7 @@ class WindowHandler:
         self.hwnd = 0
         while self.hwnd == 0 and is_run:
             self.hwnd = win32gui.FindWindow(None, window_title)
+            time.sleep(0.5)
 
     def is_window_foreground(self):
         foreground_window = win32gui.GetForegroundWindow()
@@ -81,9 +82,10 @@ class ColorFinder:
         self.max_height = int((bottom - top) // (5 / 2))
         self.max_width = (right - left) // 2
 
-        img = ImageGrab.grab(all_screens=True)
-        img = np.array(img)
+        image = ImageGrab.grab(all_screens=True)
+        img = np.array(image)
         img = img[top + self.max_height:bottom, left:right]
+        image.close()
 
         lower_bound = np.clip(np.array([target_color[0] - tolerance, target_color[1] - tolerance, target_color[2] - tolerance]), 0, 255)
         upper_bound = np.clip(np.array([target_color[0] + tolerance, target_color[1] + tolerance, target_color[2] + tolerance]), 0, 255)
@@ -193,4 +195,4 @@ class AutoClicker:
 
 if __name__ == '__main__':
     auto_clicker = AutoClicker(key_mapping)
-    auto_clicker.run()
+    auto_clicker.toggle()
