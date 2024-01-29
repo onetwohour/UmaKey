@@ -8,10 +8,31 @@ import pygetwindow as gw
 import subprocess
 import time
 from PIL import ImageGrab
-from pyuac import main_requires_admin
 from ctypes import windll
 user32 = windll.user32
 user32.SetProcessDPIAware()
+
+is_run = False
+
+# 특정 프로그램의 창 제목과 키와 색상 매핑 설정
+window_title = "umamusume"
+key_mapping = {
+    'Space': [99,182,0], #[140, 208, 61],     # 초록버튼
+    '`':     [231, 231, 236],   # 흰 버튼
+    'Q':     [124, 203, 42],    # 휴식
+    'W':     [41, 122, 207],    # 트레이닝
+    'E':     [40, 191, 214],    # 스킬
+    'R':     [247, 154, 8],     # 외출
+    'F':     [145, 96, 239],    # 양호실
+    'T':     [217, 81, 242],    # 레슨
+    'G':     [244, 69, 137],    # 레이스
+    'TAB':     'Drag',            # 훈련 돌아보기
+    'A':    [225, 255, 178],    # 1번 선택지
+    'S':    [255, 247, 192],    # 2번 선택지
+    'D':    [255, 228, 239],    # 3번 선택지
+}
+
+
 
 def match_byte_to_key(byte_data):
     # ASCII 문자에 해당하는 바이트 값을 키로 가지는 딕셔너리
@@ -42,7 +63,7 @@ class WindowHandler:
     def __init__(self, window_title):
         self.window_title = window_title
         self.hwnd = 0
-        while self.hwnd == 0:
+        while self.hwnd == 0 and is_run:
             self.hwnd = win32gui.FindWindow(None, window_title)
 
     def is_window_foreground(self):
@@ -86,80 +107,88 @@ class ColorFinder:
             return None, None
 
 class AutoClicker:
-    def __init__(self, window_title, key_mapping, tolerance=10):
-        self.window_handler = WindowHandler(window_title)
-        gw.getWindowsWithTitle(window_title)[0].activate()
+    def __init__(self, key_mapping=key_mapping, tolerance=10):
+        self.window_handler = None
         self.color_finder = None
         self.key_mapping = key_mapping
         self.tolerance = tolerance
+        self.cpp_process = None
 
     def run(self):
-        # C++ 프로그램 실행
-        cpp_process = subprocess.Popen("input.exe", stdout=subprocess.PIPE, bufsize=1, universal_newlines=True)
+        if not is_run:
+            return
 
-        # C++ 프로그램의 출력을 읽어 키보드 입력 추출dd
-        while True:
+        if self.window_handler == None:
+            self.window_handler = WindowHandler(window_title)
+        
+        while is_run:
+            try:
+                gw.getWindowsWithTitle(window_title)[0].activate()
+            except:
+                continue
+
+            # C++ 프로그램 실행
+            if self.cpp_process == None:
+                self.cpp_process = subprocess.Popen("input.exe", stdin=subprocess.PIPE, stdout=subprocess.PIPE, bufsize=1, universal_newlines=True)
+            break
+
+        # C++ 프로그램의 출력을 읽어 키보드 입력 추출
+        while is_run:
             # 바이트 단위로 데이터를 읽어옴
-            byte_data = cpp_process.stdout.readline()
+            byte_data = self.cpp_process.stdout.readline()
             if not byte_data:
                 break  # 프로그램이 종료되면 종료
             # 바이트 데이터를 역순으로 정수로 변환하여 키 입력 값으로 출력
-            # print("Received byte data:", match_byte_to_key(int(byte_data[:-1])))  # 받은 바이트 데이터 출력
-            self.on_keyboard_event(match_byte_to_key(int(byte_data[:-1])))
-            print(byte_data[:-1], int(byte_data[:-1]))
+            self.on_keyboard_event(int(byte_data[:-1]))
 
-    def on_keyboard_event(self, key):
-        print(key)
-        if self.key_mapping.get(key) != None:
-            if self.window_handler.is_window_foreground():
-                if type(self.key_mapping[key]) == list: # 색깔 기반
-                    self.color_finder = ColorFinder(self.window_handler.hwnd)
-                    cx, cy = self.color_finder.find_color(self.key_mapping[key], self.tolerance)
+    def on_keyboard_event(self, byte_data):
+        key = self.key_mapping.get(match_byte_to_key(byte_data))
+        if key != None and self.window_handler.is_window_foreground():
+            if type(key) == list: # 색깔 기반
+                self.color_finder = ColorFinder(self.window_handler.hwnd)
+                cx, cy = self.color_finder.find_color(key, self.tolerance)
 
-                    if cx is not None and cy is not None:
-                        self.click(cx, cy)
-                        cx = cy = None
-                elif type(self.key_mapping[key]) == tuple: # 좌표 기반
-                    self.click(*self.key_mapping[key])
-                elif type(self.key_mapping[key]) == int: # 단순 매핑
-                    self.keyboard(self.key_mapping[key])
-                elif self.key_mapping[key] == 'Drag': # 특수기능
-                    left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
-                    self.click((left + right) // 2, (top + bottom) // 2)
-                    for i in range(49, 54):
-                        self.keyboard(i)
-                        time.sleep(0.1)
-            return True
+                if cx is not None and cy is not None:
+                    self.click(cx, cy)
+                    cx = cy = None
+            elif type(key) == tuple: # 좌표 기반
+                self.click(*key)
+            elif type(key) == int: # 단순 매핑
+                self.keyboard(key)
+            elif key == 'Drag': # 특수기능
+                left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
+                self.click((left + right) // 2, (top + bottom) // 2)
+                for i in range(49, 54):
+                    self.keyboard(i)
+                    time.sleep(0.1)
+            return True 
         else:
-            return False    
-    
+            win32api.keybd_event(byte_data, 0, 0, 3000)
+            return False
+            
     def keyboard(self, code):
-        win32api.keybd_event(code, 0, 0, 0)
-        win32api.keybd_event(code, 0, win32con.KEYEVENTF_KEYUP, 0)
+        print(code)
+        win32api.keybd_event(code, 0, 0, 3000)
+        win32api.keybd_event(code, 0, win32con.KEYEVENTF_KEYUP, 3000)
 
     def click(self, x, y):
         win32api.SetCursorPos((x, y))
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, x, y, 0, 0)
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, x, y, 0, 0)
 
-# 특정 프로그램의 창 제목과 키와 색상 매핑 설정
-window_title = "umamusume"
-key_mapping = {
-    'Space': [99,182,0], #[140, 208, 61],     # 초록버튼
-    '`':     [231, 231, 236],   # 흰 버튼
-    'Q':     [124, 203, 42],    # 휴식
-    'W':     [41, 122, 207],    # 트레이닝
-    'E':     [40, 191, 214],    # 스킬
-    'R':     [247, 154, 8],     # 외출
-    'F':     [145, 96, 239],    # 양호실
-    'T':     [217, 81, 242],    # 레슨
-    'G':     [244, 69, 137],    # 레이스
-    'TAB':     'Drag',            # 훈련 돌아보기
-    'A':    [225, 255, 178],    # 1번 선택지
-    'S':    [255, 247, 192],    # 2번 선택지
-    'D':    [255, 228, 239],    # 3번 선택지
-}
+    def __del__(self):
+        print("exit")
+        if self.cpp_process != None:
+            self.cpp_process.terminate()
 
-    
-auto_clicker = AutoClicker(window_title, key_mapping)
-auto_clicker.run() 
+    def toggle(self):
+        global is_run
+        is_run = not is_run
+        if is_run:
+            self.run()
+        elif self.cpp_process != None:
+            self.cpp_process.terminate()
+
+if __name__ == '__main__':
+    auto_clicker = AutoClicker(key_mapping)
+    auto_clicker.run()
