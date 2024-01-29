@@ -22,7 +22,7 @@ def exit():
 if __name__ == '__main__':
     global auto_clicker, icon
     auto_clicker = main.AutoClicker()
-    img = Image.open('icon_8.jpg')
+    img = Image.open('./_internal/icon_8.jpg')
     menu = (item(lambda t : text, action), item('Exit', exit))
     icon = pystray.Icon('Umamusume with keyboard', img, 'UmaKey', menu)
     action()
