@@ -65,6 +65,7 @@ class WindowHandler:
         self.hwnd = 0
         while self.hwnd == 0 and is_run:
             self.hwnd = win32gui.FindWindow(None, window_title)
+            time.sleep(0.5)
 
     def is_window_foreground(self):
         foreground_window = win32gui.GetForegroundWindow()
