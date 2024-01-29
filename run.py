@@ -8,6 +8,10 @@ import subprocess
 text = 'Run'
 title = 'UmaKey'
 
+for file in ['input.exe', 'icon_8.jpg']:
+    if not os.path.isfile(f'./_internal/{file}'):
+        raise FileExistsError(f"File not exist : {os.path.join(os.getcwd(), '_internal', file)}")
+
 def is_process_running(process_name):
     result = subprocess.run(["tasklist", "/FI", f"IMAGENAME eq {process_name}.exe"], capture_output=True, text=True)
     output = result.stdout

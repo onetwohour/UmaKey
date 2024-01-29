@@ -138,11 +138,11 @@ class AutoClicker:
         while is_run:
             # 바이트 단위로 데이터를 읽어옴
             byte_data = str(self.cpp_process.stdout.readline())
+            if not byte_data:
+                continue  # 프로그램이 종료되면 종료
             t, text = byte_data.split(' ')
             if int(time.time() * 1000) - int(t) > 10:
                 continue
-            if not text[:-1]:
-                break  # 프로그램이 종료되면 종료
             self.on_keyboard_event(int(text[:-1]))
 
     def on_keyboard_event(self, byte_data):
