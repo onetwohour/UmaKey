@@ -186,7 +186,10 @@ class AutoClicker:
 
     def __del__(self):
         if self.cpp_process != None:
-            self.cpp_process.terminate()
+            try:
+                self.cpp_process.terminate()
+            except:
+                pass
         if self.window_handler != None:
             del self.window_handler
 
