@@ -4,9 +4,11 @@ from PIL import Image
 import main, os
 from threading import Thread
 import subprocess
+import posinfo
 
 text = 'Run'
 title = 'UmaKey'
+enable = True
 
 for file in ['input.exe', 'icon_8.jpg']:
     if not os.path.isfile(f'./_internal/{file}'):
@@ -23,9 +25,21 @@ def action():
     Thread(target=auto_clicker.toggle, daemon=True).start()
     icon.update_menu()
 
+def getInfo():
+    global enable
+    enable = not enable
+    if text == 'Stop' and not enable:
+        action()
+    else:
+        icon.update_menu()
+    
+    posinfo.toggle()
+
 def exit():
     global auto_clicker, icon
     auto_clicker.__del__()
+    if not enable:
+        posinfo.toggle()
     icon.stop()
     del auto_clicker, icon
     os._exit(0)
@@ -36,7 +50,7 @@ if __name__ == '__main__':
     global auto_clicker, icon
     auto_clicker = main.AutoClicker()
     img = Image.open('./_internal/icon_8.jpg')
-    menu = (item(lambda t : text, action), item('Exit', exit))
+    menu = (item(lambda t : text, action, enabled=lambda e : enable), item('Inspector', getInfo), item('Exit', exit))
     icon = pystray.Icon('Umamusume with keyboard', img, title, menu)
     action()
     icon.run()

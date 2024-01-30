@@ -6,8 +6,8 @@
 
 const int TIME = 500;
 std::chrono::milliseconds duration(TIME);
-auto millisecond = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
-auto now = millisecond;
+auto now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
+auto millisecond = now - duration;
 
 bool isProcessRunning(const std::wstring& processName) {
     HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
@@ -40,7 +40,10 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
     if (now - millisecond > duration)
     {
         if (!isProcessRunning(L"UmaKey.exe"))
+        {
+            std::cout << "UmaKeyNotFound" << '\n' << std::flush;
             std::exit(0);
+        }
         millisecond = now;
     }
 

@@ -7,6 +7,7 @@ import cv2
 import subprocess
 import time
 import os
+import json
 from PIL import ImageGrab
 from ctypes import windll
 user32 = windll.user32
@@ -16,23 +17,30 @@ is_run = False
 
 # 특정 프로그램의 창 제목과 키와 색상 매핑 설정
 window_title = "umamusume"
-key_mapping = {
-    'Space': [99,182,0],        # 초록버튼
-    '`':     [231, 231, 236],   # 흰 버튼
-    'Q':     [124, 203, 42],    # 휴식
-    'W':     [41, 122, 207],    # 트레이닝
-    'E':     [40, 191, 214],    # 스킬
-    'R':     [247, 154, 8],     # 외출
-    'F':     [145, 96, 239],    # 양호실
-    'T':     [217, 81, 242],    # 레슨
-    'G':     [244, 69, 137],    # 레이스
-    'TAB':     'Drag',            # 훈련 돌아보기
-    'A':    [225, 255, 178],    # 1번 선택지
-    'S':    [255, 247, 192],    # 2번 선택지
-    'D':    [255, 228, 239],    # 3번 선택지
-}
 
+if not os.path.isfile('./config.json'):
+    key_mapping = {
+        'Space': [99,182,0],        # 초록버튼
+        '`':     [231, 231, 236],   # 흰 버튼
+        'Q':     [124, 203, 42],    # 휴식
+        'W':     [41, 122, 207],    # 트레이닝
+        'E':     [40, 191, 214],    # 스킬
+        'R':     [247, 154, 8],     # 외출
+        'F':     [145, 96, 239],    # 양호실
+        'T':     [217, 81, 242],    # 레슨
+        'G':     [244, 69, 137],    # 레이스
+        'TAB':   'Drag',            # 훈련 돌아보기
+        'A':    [225, 255, 178],    # 1번 선택지
+        'S':    [255, 247, 192],    # 2번 선택지
+        'D':    [255, 228, 239],    # 3번 선택지
+    }
 
+    with open('./config.json', 'w') as f:
+        json.dump({"key_mapping": key_mapping}, f, indent=4)
+else:
+    with open('./config.json', 'r') as f:
+        load = json.load(f)
+    key_mapping = load["key_mapping"]
 
 def match_byte_to_key(byte_data):
     # ASCII 문자에 해당하는 바이트 값을 키로 가지는 딕셔너리
@@ -62,12 +70,12 @@ def match_byte_to_key(byte_data):
 class WindowHandler:
     def __init__(self):
         self.hwnd = 0
-        while self.hwnd == 0 and is_run:
-            self.hwnd = win32gui.FindWindow(None, window_title)
-            time.sleep(0.5)
 
     def is_window_foreground(self):
         return self.hwnd == win32gui.GetForegroundWindow()
+    
+    def update(self):
+        self.hwnd = win32gui.FindWindow(None, window_title)
 
 class ColorFinder:
     def __init__(self, hwnd, timer):
@@ -82,11 +90,11 @@ class ColorFinder:
             return None, None
 
         left, top, right, bottom = win32gui.GetWindowRect(self.hwnd)
-        self.max_height = int((bottom - top) // (5 / 2))
+        self.max_height = int((bottom - top) // (5 / 1))
         self.max_width = (right - left) // 2
 
-        image = ImageGrab.grab(all_screens=True)
-        img = np.array(image)[top + self.max_height:bottom, left:right]
+        image = ImageGrab.grab(bbox=(left, top + self.max_height, right, bottom), all_screens=True)
+        img = np.array(image)
         image.close()
 
         lower_bound = np.clip(np.array([target_color[0] - tolerance, target_color[1] - tolerance, target_color[2] - tolerance]), 0, 255)
@@ -117,11 +125,13 @@ class AutoClicker:
         self.tolerance = tolerance
         self.cpp_process = None
         self.timer = 0
+        self.runner = 0
 
     def run(self):
-        if not is_run:
+        if not is_run or self.runner > 0:
             return
         self.timer = time.time()
+        self.runner += 1
 
         if self.window_handler == None:
             self.window_handler = WindowHandler()
@@ -135,17 +145,24 @@ class AutoClicker:
         # C++ 프로그램의 출력을 읽어 키보드 입력 추출
         while is_run:
             if not win32gui.IsWindow(self.window_handler.hwnd):
-                self.cpp_process.terminate()
-                del self.window_handler
-                self.window_handler = WindowHandler()
-                self.cpp_process = subprocess.Popen(f"{os.path.join(os.getcwd(), '_internal', 'input.exe')}", stdout=subprocess.PIPE, bufsize=1, universal_newlines=True)
+                self.window_handler.update()
+                if self.window_handler.hwnd == 0:
+                    self.destroy()
+                    time.sleep(0.5)
+                    continue
             
-            # 바이트 단위로 데이터를 읽어옴
+            # 데이터를 읽어옴
             byte_data = self.cpp_process.stdout.readline()[:-1]
+            if not byte_data:
+                self.destroy()
+                self.cpp_process = subprocess.Popen(f"{os.path.join(os.getcwd(), '_internal', 'input.exe')}", stdout=subprocess.PIPE, bufsize=1, universal_newlines=True)
+                continue
             t, text = byte_data.split(' ')
             if int(time.time() * 1000) - int(t) > 100:
                 continue
             self.on_keyboard_event(int(text))
+
+        self.runner -= 1
 
     def on_keyboard_event(self, byte_data):
         if self.window_handler.is_window_foreground():
@@ -185,24 +202,26 @@ class AutoClicker:
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, x, y, 0, 0)
 
     def __del__(self):
-        if self.cpp_process != None:
-            try:
-                self.cpp_process.terminate()
-            except:
-                pass
-        if self.window_handler != None:
-            del self.window_handler
+        global is_run
+        is_run = False
+        self.destroy()
+
+    def destroy(self):
+        try:
+            self.cpp_process.terminate()
+            del self.cpp_process
+        except:
+            pass
 
     def toggle(self):
         global is_run
         is_run = not is_run
         if is_run:
             self.run()
-        elif self.cpp_process != None:
-            self.cpp_process.terminate()
-            self.cpp_process = None
+        else:
+            self.destroy()
             del self.window_handler
-            self.window_handler = None
+            self.cpp_process = self.window_handler = None
 
 if __name__ == '__main__':
     auto_clicker = AutoClicker(key_mapping)
