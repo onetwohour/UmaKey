@@ -129,6 +129,8 @@ class AutoClicker:
         # C++ 프로그램 실행
         if self.cpp_process == None:
             self.cpp_process = subprocess.Popen(f"{os.path.join(os.getcwd(), '_internal', 'input.exe')}", stdout=subprocess.PIPE, bufsize=1, universal_newlines=True)
+            if not os.path.isfile(os.path.join(os.getcwd(), '_internal', 'input.exe')):
+                raise FileNotFoundError(f"File not exist : {os.path.join(os.getcwd(), '_internal', 'input.exe')}")
 
         # C++ 프로그램의 출력을 읽어 키보드 입력 추출
         while is_run:
