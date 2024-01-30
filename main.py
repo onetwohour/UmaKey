@@ -86,8 +86,7 @@ class ColorFinder:
         self.max_width = (right - left) // 2
 
         image = ImageGrab.grab(all_screens=True)
-        img = np.array(image)
-        img = img[top + self.max_height:bottom, left:right]
+        img = np.array(image)[top + self.max_height:bottom, left:right]
         image.close()
 
         lower_bound = np.clip(np.array([target_color[0] - tolerance, target_color[1] - tolerance, target_color[2] - tolerance]), 0, 255)
@@ -96,8 +95,8 @@ class ColorFinder:
 
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
-        contours = [contour for contour in [*contours] if cv2.boundingRect(contour)[2] <= self.max_width and cv2.boundingRect(contour)[3] <= self.max_height]
-        if contours == []:
+        contours = [contour for contour in contours if cv2.boundingRect(contour)[2] <= self.max_width and cv2.boundingRect(contour)[3] <= self.max_height]
+        if not contours:
             return False, False
 
         max_contour = max(contours, key=cv2.contourArea)
@@ -117,7 +116,6 @@ class AutoClicker:
         self.key_mapping = key_mapping
         self.tolerance = tolerance
         self.cpp_process = None
-        self.prev_data = (0, 0)
         self.timer = 0
 
     def run(self):
@@ -141,19 +139,15 @@ class AutoClicker:
                 self.cpp_process = subprocess.Popen(f"{os.path.join(os.getcwd(), '_internal', 'input.exe')}", stdout=subprocess.PIPE, bufsize=1, universal_newlines=True)
             
             # 바이트 단위로 데이터를 읽어옴
-            byte_data = self.cpp_process.stdout.readline()
+            byte_data = self.cpp_process.stdout.readline()[:-1]
             t, text = byte_data.split(' ')
             if int(time.time() * 1000) - int(t) > 100:
                 continue
-            self.on_keyboard_event(int(text[:-1]))
+            self.on_keyboard_event(int(text))
 
     def on_keyboard_event(self, byte_data):
         if self.window_handler.is_window_foreground():
-            if self.prev_data[0] == byte_data:
-                key = self.prev_data[1]
-            else:
-                key = self.key_mapping.get(match_byte_to_key(byte_data))
-                self.prev_data = byte_data, key
+            key = self.key_mapping.get(match_byte_to_key(byte_data))
             if key != None:
                 if type(key) == list: # 색깔 기반
                     self.color_finder = ColorFinder(self.window_handler.hwnd, self.timer)
