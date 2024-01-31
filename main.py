@@ -17,30 +17,36 @@ is_run = False
 
 # 특정 프로그램의 창 제목과 키와 색상 매핑 설정
 window_title = "umamusume"
+key_mapping = {}
 
-if not os.path.isfile('./config.json'):
-    key_mapping = {
-        'Space': [99,182,0],        # 초록버튼
-        '`':     [231, 231, 236],   # 흰 버튼
-        'Q':     [124, 203, 42],    # 휴식
-        'W':     [41, 122, 207],    # 트레이닝
-        'E':     [40, 191, 214],    # 스킬
-        'R':     [247, 154, 8],     # 외출
-        'F':     [145, 96, 239],    # 양호실
-        'T':     [217, 81, 242],    # 레슨
-        'G':     [244, 69, 137],    # 레이스
-        'TAB':   'Drag',            # 훈련 돌아보기
-        'A':    [225, 255, 178],    # 1번 선택지
-        'S':    [255, 247, 192],    # 2번 선택지
-        'D':    [255, 228, 239],    # 3번 선택지
-    }
+def load_json():
+    global key_mapping
+    if not os.path.isfile('./config.json'):
+        key_mapping = {
+            'Space': [99,182,0],        # 초록버튼
+            '`':     [231, 231, 236],   # 흰 버튼
+            'Q':     [124, 203, 42],    # 휴식
+            'W':     [41, 122, 207],    # 트레이닝
+            'E':     [40, 191, 214],    # 스킬
+            'R':     [247, 154, 8],     # 외출
+            'F':     [145, 96, 239],    # 양호실
+            'T':     [217, 81, 242],    # 레슨
+            'G':     [244, 69, 137],    # 레이스
+            'TAB':   'Drag',            # 훈련 돌아보기
+            'A':    [225, 255, 178],    # 1번 선택지
+            'S':    [255, 247, 192],    # 2번 선택지
+            'D':    [255, 228, 239],    # 3번 선택지
+        }
 
-    with open('./config.json', 'w') as f:
-        json.dump({"key_mapping": key_mapping}, f, indent=4)
-else:
-    with open('./config.json', 'r') as f:
-        load = json.load(f)
-    key_mapping = load["key_mapping"]
+        with open('./config.json', 'w') as f:
+            json.dump({"key_mapping": key_mapping}, f, indent=4)
+    else:
+        try:
+            with open('./config.json', 'r') as f:
+                load = json.load(f)
+            key_mapping = load["key_mapping"]
+        except json.JSONDecodeError as e:
+            raise json.JSONDecodeError("config.json has wrong syntax.", e.doc, e.pos)
 
 def match_byte_to_key(byte_data):
     # ASCII 문자에 해당하는 바이트 값을 키로 가지는 딕셔너리
@@ -76,6 +82,14 @@ class WindowHandler:
     
     def update(self):
         self.hwnd = win32gui.FindWindow(None, window_title)
+
+    def activate_widnow(self):
+        try:
+            time.sleep(0.25)
+            win32gui.SetForegroundWindow(self.hwnd)
+            return True
+        except:
+            return False
 
 class ColorFinder:
     def __init__(self, hwnd, timer):
@@ -138,8 +152,8 @@ class AutoClicker:
 
         # C++ 프로그램 실행
         if self.cpp_process == None:
-            self.cpp_process = subprocess.Popen(f"{os.path.join(os.getcwd(), '_internal', 'input.exe')}", stdout=subprocess.PIPE, bufsize=1, universal_newlines=True)
-            if not os.path.isfile(os.path.join(os.getcwd(), '_internal', 'input.exe')):
+            self.cpp_process = subprocess.Popen("./_internal/input.exe", stdout=subprocess.PIPE, bufsize=1, universal_newlines=True)
+            if not os.path.isfile('./_internal/input.exe'):
                 raise FileNotFoundError(f"File not exist : {os.path.join(os.getcwd(), '_internal', 'input.exe')}")
 
         # C++ 프로그램의 출력을 읽어 키보드 입력 추출
@@ -148,15 +162,25 @@ class AutoClicker:
                 self.window_handler.update()
                 if self.window_handler.hwnd == 0:
                     self.destroy()
+                    self.cpp_process = None
                     time.sleep(0.5)
                     continue
-            
+                elif not self.window_handler.activate_widnow():
+                    continue
             # 데이터를 읽어옴
-            byte_data = self.cpp_process.stdout.readline()[:-1]
+            if self.cpp_process != None:
+                byte_data = self.cpp_process.stdout.readline()[:-1]
+            else:
+                byte_data = ""
+
             if not byte_data:
                 self.destroy()
-                self.cpp_process = subprocess.Popen(f"{os.path.join(os.getcwd(), '_internal', 'input.exe')}", stdout=subprocess.PIPE, bufsize=1, universal_newlines=True)
+                if is_run:
+                    self.cpp_process = subprocess.Popen("./_internal/input.exe", stdout=subprocess.PIPE, bufsize=1, universal_newlines=True)
                 continue
+            elif byte_data == "UmaKeyNotFound":
+                raise ProcessLookupError(byte_data)
+            
             t, text = byte_data.split(' ')
             if int(time.time() * 1000) - int(t) > 100:
                 continue
@@ -217,6 +241,8 @@ class AutoClicker:
         global is_run
         is_run = not is_run
         if is_run:
+            load_json()
+            self.key_mapping = key_mapping
             self.run()
         else:
             self.destroy()

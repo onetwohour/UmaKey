@@ -51,6 +51,6 @@ if __name__ == '__main__':
     auto_clicker = main.AutoClicker()
     img = Image.open('./_internal/icon_8.jpg')
     menu = (item(lambda t : text, action, enabled=lambda e : enable), item('Inspector', getInfo), item('Exit', exit))
-    icon = pystray.Icon('Umamusume with keyboard', img, title, menu)
+    icon = pystray.Icon(title, img, title, menu)
     action()
     icon.run()
