@@ -1,6 +1,5 @@
 import win32gui
 import win32con
-from win32con import VK_LSHIFT, VK_RSHIFT, VK_LCONTROL, VK_RCONTROL
 import win32api
 import numpy as np
 import cv2
@@ -19,11 +18,24 @@ is_run = False
 window_title = "umamusume"
 key_mapping = {}
 
+def convert_value(value_str):
+    # 리스트 형태인 경우
+    if value_str.startswith("[") and value_str.endswith("]"):
+        return [int(x) for x in value_str[1:-1].split(",")]
+    # 튜플 형태인 경우
+    elif value_str.startswith("(") and value_str.endswith(")"):
+        return tuple(int(x) for x in value_str[1:-1].split(","))
+    # 정수 형태인 경우
+    elif value_str.isdigit():
+        return int(value_str)
+    else:
+        return value_str
+
 def load_json():
     global key_mapping
     if not os.path.isfile('./config.json'):
         key_mapping = {
-            'Space': [99,182,0],        # 초록버튼
+            'SPACEBAR': [99,182,0],        # 초록버튼
             '`':     [231, 231, 236],   # 흰 버튼
             'Q':     [124, 203, 42],    # 휴식
             'W':     [41, 122, 207],    # 트레이닝
@@ -36,42 +48,54 @@ def load_json():
             'A':    [225, 255, 178],    # 1번 선택지
             'S':    [255, 247, 192],    # 2번 선택지
             'D':    [255, 228, 239],    # 3번 선택지
+            '/':    (730, 1320),
         }
 
         with open('./config.json', 'w') as f:
-            json.dump({"key_mapping": key_mapping}, f, indent=4)
+            save = {key:str(value) for key, value in key_mapping.items()}
+            json.dump({"key_mapping": save}, f, indent=4)
     else:
         try:
             with open('./config.json', 'r') as f:
                 load = json.load(f)
-            key_mapping = load["key_mapping"]
+
+            key_mapping = {key:convert_value(value) for key, value in load["key_mapping"].items()}
         except json.JSONDecodeError as e:
             raise json.JSONDecodeError("config.json has wrong syntax.", e.doc, e.pos)
 
-def match_byte_to_key(byte_data):
-    # ASCII 문자에 해당하는 바이트 값을 키로 가지는 딕셔너리
-    byte_to_key = {
-        0: "NUL", 1: "SOH", 2: "STX", 3: "ETX", 4: "EOT", 5: "ENQ", 6: "ACK", 7: "BEL",
-        8: "BS", 9: "TAB", 10: "LF", 11: "VT", 12: "FF", 13: "CR", 14: "SO", 15: "SI",
-        16: "DLE", 17: "DC1", 18: "DC2", 19: "DC3", 20: "DC4", 21: "NAK", 22: "SYN", 23: "ETB",
-        24: "CAN", 25: "EM", 26: "SUB", 27: "ESC", 28: "FS", 29: "GS", 30: "RS", 31: "US",
-        32: "Space", 33: "!", 34: "\"", 35: "#", 36: "$", 37: "%", 38: "&", 39: "'",
-        40: "(", 41: ")", 42: "*", 43: "+", 44: ",", 45: "-", 46: ".", 47: "/",
-        48: "0", 49: "1", 50: "2", 51: "3", 52: "4", 53: "5", 54: "6", 55: "7",
-        56: "8", 57: "9", 58: ":", 59: ";", 60: "<", 61: "=", 62: ">", 63: "?",
-        64: "@", 65: "A", 66: "B", 67: "C", 68: "D", 69: "E", 70: "F", 71: "G",
-        72: "H", 73: "I", 74: "J", 75: "K", 76: "L", 77: "M", 78: "N", 79: "O",
-        80: "P", 81: "Q", 82: "R", 83: "S", 84: "T", 85: "U", 86: "V", 87: "W",
-        88: "X", 89: "Y", 90: "Z", 91: "[", 92: "\\", 93: "]", 94: "^", 95: "_",
-        96: "`", 97: "a", 98: "b", 99: "c", 100: "d", 101: "e", 102: "f", 103: "g",
-        104: "h", 105: "i", 106: "j", 107: "k", 108: "l", 109: "m", 110: "n", 111: "o",
-        112: "p", 113: "q", 114: "r", 115: "s", 116: "t", 117: "u", 118: "v", 119: "w",
-        120: "x", 121: "y", 122: "z", 123: "{", 124: "|", 125: "}", 126: "~", 127: "DEL",
-        160: VK_LSHIFT, 161: VK_RSHIFT, 162: VK_LCONTROL, 163: VK_RCONTROL, 192: '`'
-    }
-    
-    # 딕셔너리에서 해당하는 키 반환, 없으면 None 반환
-    return byte_to_key.get(byte_data)
+# ASCII 문자에 해당하는 바이트 값을 키로 가지는 딕셔너리
+byte_to_key = {
+    win32con.VK_BACK: "BACKSPACE", win32con.VK_TAB: "TAB", win32con.VK_CLEAR: "CLEAR",
+    win32con.VK_RETURN: "ENTER", win32con.VK_SHIFT: "SHIFT", win32con.VK_CONTROL: "CTRL",
+    win32con.VK_MENU: "ALT", win32con.VK_PAUSE: "PAUSE", win32con.VK_CAPITAL: "CAPS_LOCK",
+    win32con.VK_ESCAPE: "ESC", win32con.VK_SPACE: "SPACEBAR", win32con.VK_PRIOR: "PAGE_UP",
+    win32con.VK_NEXT: "PAGE_DOWN", win32con.VK_END: "END", win32con.VK_HOME: "HOME",
+    win32con.VK_LEFT: "LEFT_ARROW", win32con.VK_UP: "UP_ARROW", win32con.VK_RIGHT: "RIGHT_ARROW",
+    win32con.VK_DOWN: "DOWN_ARROW", win32con.VK_SNAPSHOT: "PRINT_SCREEN", win32con.VK_INSERT: "INSERT",
+    win32con.VK_DELETE: "DELETE", win32con.VK_NUMPAD0: "NUMPAD_0", win32con.VK_NUMPAD1: "NUMPAD_1",
+    win32con.VK_NUMPAD2: "NUMPAD_2", win32con.VK_NUMPAD3: "NUMPAD_3", win32con.VK_NUMPAD4: "NUMPAD_4",
+    win32con.VK_NUMPAD5: "NUMPAD_5", win32con.VK_NUMPAD6: "NUMPAD_6", win32con.VK_NUMPAD7: "NUMPAD_7",
+    win32con.VK_NUMPAD8: "NUMPAD_8", win32con.VK_NUMPAD9: "NUMPAD_9", 48: "0", 49: "1", 50: "2",
+    51: "3", 52: "4", 53: "5", 54: "6", 55: "7", 56: "8", 57: "9", ord('A'): "A", ord('B'): "B",
+    ord('C'): "C", ord('D'): "D", ord('E'): "E", ord('F'): "F", ord('G'): "G", ord('H'): "H",
+    ord('I'): "I", ord('J'): "J", ord('K'): "K", ord('L'): "L", ord('M'): "M", ord('N'): "N",
+    ord('O'): "O", ord('P'): "P", ord('Q'): "Q", ord('R'): "R", ord('S'): "S", ord('T'): "T",
+    ord('U'): "U", ord('V'): "V", ord('W'): "W", ord('X'): "X", ord('Y'): "Y", ord('Z'): "Z",
+    win32con.VK_LWIN: "LEFT_WINDOWS", win32con.VK_RWIN: "RIGHT_WINDOWS", win32con.VK_APPS: "CONTEXT_MENU",
+    win32con.VK_MULTIPLY: "MULTIPLY", win32con.VK_ADD: "ADD", win32con.VK_SEPARATOR: "SEPARATOR",
+    win32con.VK_SUBTRACT: "SUBTRACT", win32con.VK_DECIMAL: "DECIMAL", win32con.VK_DIVIDE: "DIVIDE",
+    win32con.VK_F1: "F1", win32con.VK_F2: "F2", win32con.VK_F3: "F3", win32con.VK_F4: "F4",
+    win32con.VK_F5: "F5", win32con.VK_F6: "F6", win32con.VK_F7: "F7", win32con.VK_F8: "F8",
+    win32con.VK_F9: "F9", win32con.VK_F10: "F10", win32con.VK_F11: "F11", win32con.VK_F12: "F12",
+    win32con.VK_F13: "F13", win32con.VK_F14: "F14", win32con.VK_F15: "F15", win32con.VK_F16: "F16",
+    win32con.VK_F17: "F17", win32con.VK_F18: "F18", win32con.VK_F19: "F19", win32con.VK_F20: "F20",
+    win32con.VK_F21: "F21", win32con.VK_F22: "F22", win32con.VK_F23: "F23", win32con.VK_F24: "F24",
+    win32con.VK_NUMLOCK: "NUM_LOCK", win32con.VK_SCROLL: "SCROLL_LOCK", win32con.VK_LSHIFT: "LEFT_SHIFT",
+    win32con.VK_RSHIFT: "RIGHT_SHIFT", win32con.VK_LCONTROL: "LEFT_CTRL", win32con.VK_RCONTROL: "RIGHT_CTRL",
+    win32con.VK_LMENU: "LEFT_MENU", win32con.VK_RMENU: "RIGHT_MENU", 186: ";",
+    107: "+", 188: ",", 109: "-", 190: ".", 191: "/", 192: "`",
+    219: "[", 220: "\\", 221: "]", 222: "'"
+}
 
 class WindowHandler:
     def __init__(self):
@@ -190,7 +214,7 @@ class AutoClicker:
 
     def on_keyboard_event(self, byte_data):
         if self.window_handler.is_window_foreground():
-            key = self.key_mapping.get(match_byte_to_key(byte_data))
+            key = self.key_mapping.get(byte_to_key.get(byte_data))
             if key != None:
                 if type(key) == list: # 색깔 기반
                     self.color_finder = ColorFinder(self.window_handler.hwnd, self.timer)
@@ -203,6 +227,8 @@ class AutoClicker:
                         self.timer = time.time()
 
                 elif type(key) == tuple: # 좌표 기반
+                    left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
+                    key = tuple(x + y for x, y in zip(key, (left, top)))
                     self.click(*key)
                 elif type(key) == int: # 단순 매핑
                     self.keyboard(key)
