@@ -7,7 +7,7 @@ import subprocess
 import time
 import os
 import json
-import sys
+import re
 from PIL import ImageGrab
 from threading import Thread
 from ctypes import *
@@ -20,69 +20,6 @@ is_run = False
 window_title = "umamusume"
 key_mapping = {}
 ratio = 0
-
-def convert_value(value_str):
-    # 리스트 형태인 경우
-    if value_str.startswith("[") and value_str.endswith("]"):
-        return [int(x) for x in value_str[1:-1].split(",")]
-    # 튜플 형태인 경우
-    elif value_str.startswith("(") and value_str.endswith(")"):
-        return tuple(int(x) for x in value_str[1:-1].split(","))
-    # 정수 형태인 경우
-    elif value_str.isdigit():
-        return int(value_str)
-    else:
-        return value_str
-
-def load_json():
-    global key_mapping, ratio
-    if not os.path.isfile('./config.json'):
-        key_mapping = {
-            'SPACEBAR': [99,182,0],        # 초록버튼
-            '`':     [231, 231, 236],   # 흰 버튼
-            'Q':     [124, 203, 42],    # 휴식
-            'W':     [41, 122, 207],    # 트레이닝
-            'E':     [40, 191, 214],    # 스킬
-            'R':     [247, 154, 8],     # 외출
-            'F':     [145, 96, 239],    # 양호실
-            'T':     [217, 81, 242],    # 레슨
-            'G':     [244, 69, 137],    # 레이스
-            'TAB':   'Drag',            # 훈련 돌아보기
-            'A':    [225, 255, 178],    # 1번 선택지
-            'S':    [255, 247, 192],    # 2번 선택지
-            'D':    [255, 228, 239],    # 3번 선택지
-            '/':    (730, 1320),
-        }
-
-        screen_size = {
-            'x': 808,
-            'y': 1453
-        }
-
-        support_key = ["BACKSPACE, TAB, CLEAR, ENTER, SHIFT, CTRL, ALT, PAUSE, CAPS_LOCK, ESC, SPACEBAR, PAGE_UP, PAGE_DOWN, ",
-                    "END, HOME, LEFT_ARROW, UP_ARROW, RIGHT_ARROW, DOWN_ARROW, PRINT_SCREEN, INSERT, DELETE, NUMPAD_0, ",
-                    "NUMPAD_1, NUMPAD_2, NUMPAD_3, NUMPAD_4, NUMPAD_5, NUMPAD_6, NUMPAD_7, NUMPAD_8, NUMPAD_9, 0, 1, 2, ",
-                    "3, 4, 5, 6, 7, 8, 9, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z, ",
-                    "LEFT_WINDOWS, RIGHT_WINDOWS, CONTEXT_MENU, MULTIPLY, ADD, SEPARATOR, SUBTRACT, DECIMAL, DIVIDE, F1, F2, ",
-                    "F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F13, F14, F15, F16, F17, F18, F19, F20, F21, F22, F23, F24, ",
-                    "NUM_LOCK, SCROLL_LOCK, LEFT_SHIFT, RIGHT_SHIFT, LEFT_CTRL, RIGHT_CTRL, LEFT_MENU, RIGHT_MENU, ;, +, ,, ",
-                    "-, ., /, `, [, \\, ], '"]
-
-
-        with open('./config.json', 'w') as f:
-            save = {key:str(value) for key, value in key_mapping.items()}
-            json.dump({"support_key":support_key, "key_mapping":save, "screen_size":screen_size}, f, indent=4)
-    else:
-        try:
-            with open('./config.json', 'r') as f:
-                load = json.load(f)
-
-            key_mapping = {key:convert_value(value) for key, value in load["key_mapping"].items()}
-            screen_size = load["screen_size"]
-        except json.JSONDecodeError as e:
-            raise json.JSONDecodeError("config.json has wrong syntax.", e.doc, e.pos)
-        
-    ratio = screen_size['x'], screen_size['y']
 
 # ASCII 문자에 해당하는 바이트 값을 키로 가지는 딕셔너리
 byte_to_key = {
@@ -117,6 +54,73 @@ byte_to_key = {
     107: "+", 188: ",", 109: "-", 190: ".", 191: "/", 192: "`",
     219: "[", 220: "\\", 221: "]", 222: "'"
 }
+
+key_to_byte = {v: k for k, v in byte_to_key.items()}
+
+def convert_value(value_str):
+    split = value_str.split(',')
+    # 리스트 형태인 경우
+    if value_str.startswith("[") and value_str.endswith("]") and len(split) == 3:
+        return [int(x) for x in value_str[1:-1].split(",")]
+    # 튜플 형태인 경우
+    elif value_str.startswith("(") and value_str.endswith(")") and len(split) == 2:
+        return tuple(int(x) for x in value_str[1:-1].split(","))
+    # 키 형태인 경우
+    elif key_to_byte.get(value_str) != None:
+        return key_to_byte[value_str]
+    else:
+        return value_str
+
+def load_json():
+    global key_mapping, ratio, load
+    if not os.path.isfile('./config.json'):
+        key_mapping = {
+            'SPACEBAR': [99,182,0],        # 초록버튼
+            '`':     [231, 231, 236],   # 흰 버튼
+            'Q':     [124, 203, 42],    # 휴식
+            'W':     [41, 122, 207],    # 트레이닝
+            'E':     [40, 191, 214],    # 스킬
+            'R':     [247, 154, 8],     # 외출
+            'F':     [145, 96, 239],    # 양호실
+            'T':     [217, 81, 242],    # 레슨
+            'G':     [244, 69, 137],    # 레이스
+            'TAB':   'Drag',            # 훈련 돌아보기
+            'A':    [225, 255, 178],    # 1번 선택지
+            'S':    [255, 247, 192],    # 2번 선택지
+            'D':    [255, 228, 239],    # 3번 선택지
+            '/':    (730, 1320),
+        }
+
+        screen_size = {
+            'x': 808,
+            'y': 1453
+        }
+
+        support_key = ["BACKSPACE, TAB, CLEAR, ENTER, SHIFT, CTRL, ALT, PAUSE, CAPS_LOCK, ESC, SPACEBAR, PAGE_UP, PAGE_DOWN, ",
+                    "END, HOME, LEFT_ARROW, UP_ARROW, RIGHT_ARROW, DOWN_ARROW, PRINT_SCREEN, INSERT, DELETE, NUMPAD_0, ",
+                    "NUMPAD_1, NUMPAD_2, NUMPAD_3, NUMPAD_4, NUMPAD_5, NUMPAD_6, NUMPAD_7, NUMPAD_8, NUMPAD_9, 0, 1, 2, ",
+                    "3, 4, 5, 6, 7, 8, 9, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z, ",
+                    "LEFT_WINDOWS, RIGHT_WINDOWS, CONTEXT_MENU, MULTIPLY, ADD, SEPARATOR, SUBTRACT, DECIMAL, DIVIDE, F1, F2, ",
+                    "F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F13, F14, F15, F16, F17, F18, F19, F20, F21, F22, F23, F24, ",
+                    "NUM_LOCK, SCROLL_LOCK, LEFT_SHIFT, RIGHT_SHIFT, LEFT_CTRL, RIGHT_CTRL, LEFT_MENU, RIGHT_MENU, ;, +, ,, ",
+                    "-, ., /, `, [, \\, ], '"]
+
+        Drag = "RIGHT_ARROW, sleep 0.1, RIGHT_ARROW, sleep 0.1, RIGHT_ARROW, sleep 0.1, RIGHT_ARROW"
+
+        with open('./config.json', 'w') as f:
+            save = {key:str(value) for key, value in key_mapping.items()}
+            json.dump({"support_key":support_key, "key_mapping":save, "screen_size":screen_size, "Drag":Drag}, f, indent=4)
+    else:
+        try:
+            with open('./config.json', 'r') as f:
+                load = json.load(f)
+
+            key_mapping = {key:convert_value(value) for key, value in load["key_mapping"].items()}
+            screen_size = load["screen_size"]
+        except json.JSONDecodeError as e:
+            raise json.JSONDecodeError("config.json has wrong syntax.", e.doc, e.pos)
+        
+    ratio = screen_size['x'], screen_size['y']
 
 class WindowHandler:
     def __init__(self):
@@ -180,7 +184,6 @@ class AutoClicker:
     def __init__(self, key_mapping=key_mapping, tolerance=10):
         self.window_handler = None
         self.color_finder = None
-        self.key_mapping = key_mapping
         self.tolerance = tolerance
         self.cpp_process = None
         self.timer = 0
@@ -215,7 +218,7 @@ class AutoClicker:
                     continue
                 Thread(target=self.screen_size_detect).start()
 
-            byte_data = ""
+            byte_data = ""  
 
             # 데이터를 읽어옴
             if self.cpp_process != None and self.window_handler.is_window_foreground():
@@ -236,9 +239,10 @@ class AutoClicker:
 
         self.runner -= 1
 
+    # 처음 실행 시, 게임 창 비율을 확인
     def screen_size_detect(self):
         delay = timer = time.time()
-        while is_run and time.time() - delay < 30 and win32gui.IsWindow(self.window_handler.hwnd):
+        while is_run and time.time() - delay < 15 and win32gui.IsWindow(self.window_handler.hwnd):
             left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
             if abs(((bottom - top) / (right - left)) / (ratio[1] / ratio[0]) - 1) > 0.05 and (240, 320) != (bottom - top, right - left):
                 if time.time() - timer < 5:
@@ -251,7 +255,8 @@ class AutoClicker:
                 dll("게임 화면 비율이 다릅니다.")
                 del dll
                 break
-
+    
+    # 게임 창이 10초 이상 꺼져있다면, 키보드 입력 감지 종료
     def check_screen(self):
         timer = time.time()
         while is_run:
@@ -263,34 +268,39 @@ class AutoClicker:
                 timer = time.time()
 
             time.sleep(0.5)
+    
+    # 매크로 해석
+    def decode(self, text):
+        keys = []
+        tokens = re.findall(r'\[.*?\]|\(.*?\)|\d+|\b\w+\s[\d.]+\b|\w+', load[text])
+        for token in tokens:
+            if token.startswith('('):
+                keys.append(tuple(map(int, token[1:-1].split(','))))
+            elif token.startswith('['):
+                keys.append([int(x) for x in token[1:-1].split(',')])
+            elif token.isdigit():
+                keys.append(key_to_byte[token])
+            elif re.match(r'\b\w+\s[\d.]+\b', token):
+                keys.append(token)
+            else:
+                keys.append(token) 
+        return keys
 
+    # 키보드 입력시
     def on_keyboard_event(self, byte_data):
-        key = self.key_mapping.get(byte_to_key.get(byte_data))
+        key = key_mapping.get(byte_to_key.get(byte_data))
+
         if key == None:
             win32api.keybd_event(byte_data, 0, 0, 3000)
             return False
+        if type(key) == str and load.get(key) != None:
+            keys = self.decode(key)  
+        else:
+            keys = [key]
 
-        if type(key) == list: # 색깔 기반
-            self.color_finder = ColorFinder(self.window_handler.hwnd, self.timer)
-            cx, cy = self.color_finder.find_color(key, self.tolerance)
-            if cx != None and cy != None:
-                if cx or cy:
-                    self.click(cx, cy)
-                    cx = cy = None
-                self.timer = time.time()
-        elif type(key) == tuple: # 좌표 기반
-            left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
-            key = key[0] * (right - left) // ratio[0], key[1] * (bottom - top) // ratio[1]
-            key = tuple(x + y for x, y in zip(key, (left, top)))
-            self.click(*key)
-        elif type(key) == int: # 단순 매핑
-            self.keyboard(key)
-        elif key == 'Drag': # 특수기능
-            left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
-            self.click((left + right) // 2, (top + bottom) // 2)
-            for i in range(49, 54):
-                self.keyboard(i)
-                time.sleep(0.1)
+        for key in keys:
+            self.macro(key)
+
         return True 
             
     def keyboard(self, code):
@@ -301,6 +311,32 @@ class AutoClicker:
         win32api.SetCursorPos((x, y))
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, x, y, 0, 0)
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, x, y, 0, 0)
+
+    # 적절한 기능 수행
+    def macro(self, key):
+        if type(key) == list: # 색깔 기반
+            self.color_finder = ColorFinder(self.window_handler.hwnd, self.timer)
+            cx, cy = self.color_finder.find_color(key, self.tolerance)
+            if cx != None and cy != None:
+                if cx or cy:
+                    self.click(cx, cy)
+                    cx = cy = None
+                self.timer = time.time()
+        elif type(key) == int: # 단순 매핑
+            self.keyboard(int(key))
+        elif type(key) == tuple: # 좌표 기반
+            left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
+            key = key[0] * (right - left) // ratio[0], key[1] * (bottom - top) // ratio[1]
+            key = tuple(x + y for x, y in zip(key, (left, top)))
+            self.click(*key)      
+        elif key.startswith('sleep'): # 딜레이
+            time.sleep(float(key.split(' ')[-1]))
+        elif key_to_byte.get(key) != None:
+            self.keyboard(key_to_byte[key])
+        elif load.get(key) != None: # 매크로 속 매크로
+            for text in self.decode(key):
+                self.macro(text)
+        
 
     def __del__(self):
         global is_run
@@ -319,7 +355,6 @@ class AutoClicker:
         is_run = not is_run
         if is_run:
             load_json()
-            self.key_mapping = key_mapping
             self.run()
         else:
             self.destroy()

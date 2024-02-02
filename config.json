@@ -28,5 +28,6 @@
     "screen_size": {
         "x": 808,
         "y": 1453
-    }
+    },
+    "Drag": "RIGHT_ARROW, sleep 0.1, RIGHT_ARROW, sleep 0.1, RIGHT_ARROW, sleep 0.1, RIGHT_ARROW"
 }
