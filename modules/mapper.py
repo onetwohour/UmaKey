@@ -218,7 +218,7 @@ class AutoClicker:
             byte_data = ""
 
             # 데이터를 읽어옴
-            if self.cpp_process != None:
+            if self.cpp_process != None and self.window_handler.is_window_foreground():
                 byte_data = self.cpp_process.stdout.readline()[:-1]
 
             if not byte_data:
@@ -265,35 +265,33 @@ class AutoClicker:
             time.sleep(0.5)
 
     def on_keyboard_event(self, byte_data):
-        if self.window_handler.is_window_foreground():
-            key = self.key_mapping.get(byte_to_key.get(byte_data))
-            if key != None:
-                if type(key) == list: # 색깔 기반
-                    self.color_finder = ColorFinder(self.window_handler.hwnd, self.timer)
-                    cx, cy = self.color_finder.find_color(key, self.tolerance)
+        key = self.key_mapping.get(byte_to_key.get(byte_data))
+        if key == None:
+            win32api.keybd_event(byte_data, 0, 0, 3000)
+            return False
 
-                    if cx != None and cy != None:
-                        if cx or cy:
-                            self.click(cx, cy)
-                            cx = cy = None
-                        self.timer = time.time()
-
-                elif type(key) == tuple: # 좌표 기반
-                    left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
-                    key = key[0] * (right - left) // ratio[0], key[1] * (bottom - top) // ratio[1]
-                    key = tuple(x + y for x, y in zip(key, (left, top)))
-                    self.click(*key)
-                elif type(key) == int: # 단순 매핑
-                    self.keyboard(key)
-                elif key == 'Drag': # 특수기능
-                    left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
-                    self.click((left + right) // 2, (top + bottom) // 2)
-                    for i in range(49, 54):
-                        self.keyboard(i)
-                        time.sleep(0.1)
-                return True 
-        win32api.keybd_event(byte_data, 0, 0, 3000)
-        return False
+        if type(key) == list: # 색깔 기반
+            self.color_finder = ColorFinder(self.window_handler.hwnd, self.timer)
+            cx, cy = self.color_finder.find_color(key, self.tolerance)
+            if cx != None and cy != None:
+                if cx or cy:
+                    self.click(cx, cy)
+                    cx = cy = None
+                self.timer = time.time()
+        elif type(key) == tuple: # 좌표 기반
+            left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
+            key = key[0] * (right - left) // ratio[0], key[1] * (bottom - top) // ratio[1]
+            key = tuple(x + y for x, y in zip(key, (left, top)))
+            self.click(*key)
+        elif type(key) == int: # 단순 매핑
+            self.keyboard(key)
+        elif key == 'Drag': # 특수기능
+            left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
+            self.click((left + right) // 2, (top + bottom) // 2)
+            for i in range(49, 54):
+                self.keyboard(i)
+                time.sleep(0.1)
+        return True 
             
     def keyboard(self, code):
         win32api.keybd_event(code, 0, 0, 3000)
