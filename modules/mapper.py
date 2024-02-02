@@ -135,6 +135,9 @@ class WindowHandler:
     def activate_widnow(self):
         try:
             time.sleep(0.25)
+            user32.keybd_event(0x25, 0, 0, 3000)
+            time.sleep(0.1)
+            user32.keybd_event(0x25, 0, 2, 3000)
             win32gui.SetForegroundWindow(self.hwnd)
             return True
         except:
@@ -181,7 +184,7 @@ class ColorFinder:
             return False, False
 
 class AutoClicker:
-    def __init__(self, key_mapping=key_mapping, tolerance=10):
+    def __init__(self, tolerance=10):
         self.window_handler = None
         self.color_finder = None
         self.tolerance = tolerance
@@ -189,21 +192,24 @@ class AutoClicker:
         self.timer = 0
         self.runner = 0
 
+    def open_exe(self):
+        self.cpp_process = subprocess.Popen("./_internal/input.exe", stdout=subprocess.PIPE, bufsize=1, universal_newlines=True, shell=False)
+        Thread(target=self.check_screen, daemon=True).start()
+
     def run(self):
         if not is_run or self.runner > 0:
             return
         self.timer = time.time()
         self.runner += 1
-        Thread(target=self.check_screen, daemon=True).start()
 
         if self.window_handler == None:
             self.window_handler = WindowHandler()
 
         # C++ 프로그램 실행
         if self.cpp_process == None:
-            self.cpp_process = subprocess.Popen("./_internal/input.exe", stdout=subprocess.PIPE, bufsize=1, universal_newlines=True)
             if not os.path.isfile('./_internal/input.exe'):
                 raise FileNotFoundError(f"File not exist : {os.path.join(os.getcwd(), '_internal', 'input.exe')}")
+            self.open_exe()
 
         # C++ 프로그램의 출력을 읽어 키보드 입력 추출
         while is_run:
@@ -211,23 +217,25 @@ class AutoClicker:
                 self.window_handler.update()
                 if self.window_handler.hwnd == 0:
                     self.destroy()
-                    self.cpp_process = None
                     time.sleep(0.5)
                     continue
                 elif not self.window_handler.activate_widnow():
                     continue
-                Thread(target=self.screen_size_detect).start()
+                Thread(target=self.screen_size_detect, daemon=True).start()
 
-            byte_data = ""  
-
+            byte_data = ""
+            
             # 데이터를 읽어옴
             if self.cpp_process != None and self.window_handler.is_window_foreground():
                 byte_data = self.cpp_process.stdout.readline()[:-1]
-
+            
             if not byte_data:
                 self.destroy()
-                if is_run:
-                    self.cpp_process = subprocess.Popen("./_internal/input.exe", stdout=subprocess.PIPE, bufsize=1, universal_newlines=True)
+                if is_run and self.window_handler.is_window_foreground():
+                    time.sleep(0.1)
+                    self.open_exe()
+                else:
+                    time.sleep(0.5)
                 continue
             elif byte_data == "UmaKeyNotFound":
                 raise ProcessLookupError(byte_data)
@@ -236,17 +244,16 @@ class AutoClicker:
             if int(time.time() * 1000) - int(t) > 100:
                 continue
             self.on_keyboard_event(int(text))
-
+            time.sleep(0.1)
         self.runner -= 1
 
     # 처음 실행 시, 게임 창 비율을 확인
     def screen_size_detect(self):
-        delay = timer = time.time()
+        delay = time.time()
+        time.sleep(10)
         while is_run and time.time() - delay < 15 and win32gui.IsWindow(self.window_handler.hwnd):
             left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
-            if abs(((bottom - top) / (right - left)) / (ratio[1] / ratio[0]) - 1) > 0.05 and (240, 320) != (bottom - top, right - left):
-                if time.time() - timer < 5:
-                    continue
+            if abs(((bottom - top) / (right - left)) / (ratio[1] / ratio[0]) - 1) > 0.1:
                 if not os.path.isfile('./_internal/warning.dll'):
                     raise FileNotFoundError(f"File not exist : {os.path.join(os.getcwd(), '_internal', 'warning.dll')}")
                 dll = cdll.LoadLibrary(os.path.join(os.getcwd(), '_internal', 'warning.dll')).show_warning_dialog
@@ -255,18 +262,14 @@ class AutoClicker:
                 dll("게임 화면 비율이 다릅니다.")
                 del dll
                 break
-    
-    # 게임 창이 10초 이상 꺼져있다면, 키보드 입력 감지 종료
+            time.sleep(0.1)
+    # 게임 창이 꺼져있다면, 키보드 입력 감지 종료
     def check_screen(self):
-        timer = time.time()
-        while is_run:
-            if not win32gui.IsWindow(self.window_handler.hwnd):
-                if time.time() - timer > 10:
-                    self.destroy()
-                    self.cpp_process = None
-            else:
-                timer = time.time()
-
+        import pygetwindow as gw
+        while is_run and self.cpp_process != None:
+            if not self.window_handler.is_window_foreground():
+                self.destroy()
+                break
             time.sleep(0.5)
     
     # 매크로 해석
@@ -289,9 +292,8 @@ class AutoClicker:
     # 키보드 입력시
     def on_keyboard_event(self, byte_data):
         key = key_mapping.get(byte_to_key.get(byte_data))
-
-        if key == None:
-            win32api.keybd_event(byte_data, 0, 0, 3000)
+        if key == None or not self.window_handler.is_window_foreground():
+            self.keyboard(byte_data)
             return False
         if type(key) == str and load.get(key) != None:
             keys = self.decode(key)  
@@ -305,6 +307,7 @@ class AutoClicker:
             
     def keyboard(self, code):
         win32api.keybd_event(code, 0, 0, 3000)
+        time.sleep(0.1)
         win32api.keybd_event(code, 0, win32con.KEYEVENTF_KEYUP, 3000)
 
     def click(self, x, y):
@@ -322,13 +325,11 @@ class AutoClicker:
                     self.click(cx, cy)
                     cx = cy = None
                 self.timer = time.time()
-        elif type(key) == int: # 단순 매핑
-            self.keyboard(int(key))
         elif type(key) == tuple: # 좌표 기반
             left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
             key = key[0] * (right - left) // ratio[0], key[1] * (bottom - top) // ratio[1]
             key = tuple(x + y for x, y in zip(key, (left, top)))
-            self.click(*key)      
+            self.click(*key)
         elif key.startswith('sleep'): # 딜레이
             time.sleep(float(key.split(' ')[-1]))
         elif key_to_byte.get(key) != None:
@@ -336,7 +337,6 @@ class AutoClicker:
         elif load.get(key) != None: # 매크로 속 매크로
             for text in self.decode(key):
                 self.macro(text)
-        
 
     def __del__(self):
         global is_run
@@ -345,10 +345,11 @@ class AutoClicker:
 
     def destroy(self):
         try:
-            self.cpp_process.terminate()
-            del self.cpp_process
+            if self.cpp_process != None:
+                self.cpp_process.terminate()
         except:
             pass
+        self.cpp_process = None
 
     def toggle(self):
         global is_run
@@ -359,7 +360,7 @@ class AutoClicker:
         else:
             self.destroy()
             del self.window_handler
-            self.cpp_process = self.window_handler = None
+            self.window_handler = None
 
 if __name__ == '__main__':
     auto_clicker = AutoClicker(key_mapping)
