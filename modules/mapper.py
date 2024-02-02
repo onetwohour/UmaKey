@@ -10,7 +10,7 @@ import json
 import re
 from PIL import ImageGrab
 from threading import Thread
-from ctypes import *
+from ctypes import windll, cdll, c_wchar_p
 user32 = windll.user32
 user32.SetProcessDPIAware()
 
@@ -265,7 +265,6 @@ class AutoClicker:
             time.sleep(0.1)
     # 게임 창이 꺼져있다면, 키보드 입력 감지 종료
     def check_screen(self):
-        import pygetwindow as gw
         while is_run and self.cpp_process != None:
             if not self.window_handler.is_window_foreground():
                 self.destroy()
