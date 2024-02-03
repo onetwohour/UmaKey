@@ -306,7 +306,6 @@ class AutoClicker:
             
     def keyboard(self, code):
         win32api.keybd_event(code, 0, 0, 3000)
-        time.sleep(0.1)
         win32api.keybd_event(code, 0, win32con.KEYEVENTF_KEYUP, 3000)
 
     def click(self, x, y):
@@ -330,7 +329,10 @@ class AutoClicker:
             key = tuple(x + y for x, y in zip(key, (left, top)))
             self.click(*key)
         elif key.startswith('sleep'): # 딜레이
-            time.sleep(float(key.split(' ')[-1]))
+            try:
+                time.sleep(float(key.split(' ')[-1]))
+            except:
+                pass
         elif key_to_byte.get(key) != None:
             self.keyboard(key_to_byte[key])
         elif load.get(key) != None: # 매크로 속 매크로
