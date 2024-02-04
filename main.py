@@ -1,7 +1,7 @@
 from pystray import MenuItem as item
 import pystray
 from PIL import Image
-import os
+import os, time
 from threading import Thread
 import subprocess
 from modules import mapper, posinfo
@@ -24,6 +24,23 @@ def action():
     text = 'Run' if text == 'Stop' else 'Stop'
     Thread(target=auto_clicker.toggle, daemon=True).start()
     icon.update_menu()
+    Thread(target=error_check, daemon=True).start()
+
+def error_check():
+    error = 0
+    while text == 'Stop' and error < 2:
+        if auto_clicker.error != "":
+            error += 1
+            Thread(target=auto_clicker.toggle, daemon=True).start()
+            thread=Thread(target=auto_clicker.toggle, daemon=True)
+            thread.start()
+            thread.join()
+        else:
+            error = 0
+        time.sleep(0.1)
+    if error > 1:
+        icon.notify(*auto_clicker.error.args, title="Error")
+        exit()
 
 def getInfo():
     global enable

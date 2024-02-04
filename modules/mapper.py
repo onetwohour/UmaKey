@@ -19,7 +19,7 @@ is_run = False
 # 특정 프로그램의 창 제목과 키와 색상 매핑 설정
 window_title = "umamusume"
 key_mapping = {}
-ratio = 0
+ratio = 0, 0
 
 # ASCII 문자에 해당하는 바이트 값을 키로 가지는 딕셔너리
 byte_to_key = {
@@ -191,6 +191,7 @@ class AutoClicker:
         self.cpp_process = None
         self.timer = 0
         self.runner = 0
+        self.error = ""
 
     def open_exe(self):
         self.cpp_process = subprocess.Popen("./_internal/input.exe", stdout=subprocess.PIPE, bufsize=1, universal_newlines=True, shell=False)
@@ -251,7 +252,7 @@ class AutoClicker:
     def screen_size_detect(self):
         delay = time.time()
         time.sleep(10)
-        while is_run and time.time() - delay < 15 and win32gui.IsWindow(self.window_handler.hwnd):
+        while is_run and time.time() - delay < 15 and win32gui.IsWindow(self.window_handler.hwnd) and self.error == "":
             left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
             if abs(((bottom - top) / (right - left)) / (ratio[1] / ratio[0]) - 1) > 0.1:
                 if not os.path.isfile('./_internal/warning.dll'):
@@ -265,7 +266,7 @@ class AutoClicker:
             time.sleep(0.1)
     # 게임 창이 꺼져있다면, 키보드 입력 감지 종료
     def check_screen(self):
-        while is_run and self.cpp_process != None:
+        while is_run and self.cpp_process != None and self.error == "":
             if not self.window_handler.is_window_foreground():
                 self.destroy()
                 break
@@ -356,8 +357,13 @@ class AutoClicker:
         global is_run
         is_run = not is_run
         if is_run:
+            self.error = ""
             load_json()
-            self.run()
+            try:
+                self.run()
+            except Exception as e:
+                self.error = e
+                self.runner -= 1
         else:
             self.destroy()
             del self.window_handler
