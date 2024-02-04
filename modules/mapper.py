@@ -132,15 +132,15 @@ class WindowHandler:
     def update(self):
         self.hwnd = win32gui.FindWindow(None, window_title)
 
+    # 화면 활성화 시 오류 발생 방지
     def activate_widnow(self):
         try:
             time.sleep(0.25)
             win32gui.SetForegroundWindow(self.hwnd)
-            if not self.is_window_foreground():
-                user32.keybd_event(0x25, 0, 0, 3000)
-                time.sleep(0.1)
-                user32.keybd_event(0x25, 0, 2, 3000)
-                win32gui.SetForegroundWindow(self.hwnd)
+            user32.keybd_event(0x25, 0, 0, 3000)
+            time.sleep(0.1)
+            user32.keybd_event(0x25, 0, 2, 3000)
+            win32gui.SetForegroundWindow(self.hwnd)
             return True
         except:
             return False
@@ -195,6 +195,7 @@ class AutoClicker:
         self.runner = 0
         self.error = ""
 
+    # 키보드 입력 감지 프로그램
     def open_exe(self):
         self.cpp_process = subprocess.Popen("./_internal/input.exe", stdout=subprocess.PIPE, bufsize=1, universal_newlines=True, shell=False)
         Thread(target=self.check_screen, daemon=True).start()
@@ -253,10 +254,16 @@ class AutoClicker:
     # 처음 실행 시, 게임 창 비율을 확인
     def screen_size_detect(self):
         delay = time.time()
+        timeout = 15
+        # 처음 실행 시 화면 크기가 요동치므로 무시
         time.sleep(10)
-        while is_run and time.time() - delay < 15 and win32gui.IsWindow(self.window_handler.hwnd) and self.error == "":
+        # 5초간 화면 비율 검사
+        while is_run and time.time() - delay < timeout and win32gui.IsWindow(self.window_handler.hwnd) and self.error == "":
             left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
-            if abs(((bottom - top) / (right - left)) / (ratio[1] / ratio[0]) - 1) > 0.1:
+            # 최소화시 화면 크기가 달라짐
+            if win32gui.IsIconic(self.window_handler.hwnd):
+                timeout += 0.1
+            elif abs(((bottom - top) / (right - left)) / (ratio[1] / ratio[0]) - 1) > 0.1:
                 if not os.path.isfile('./_internal/warning.dll'):
                     raise FileNotFoundError(f"File not exist : {os.path.join(os.getcwd(), '_internal', 'warning.dll')}")
                 dll = cdll.LoadLibrary(os.path.join(os.getcwd(), '_internal', 'warning.dll')).show_warning_dialog
@@ -275,6 +282,7 @@ class AutoClicker:
             time.sleep(0.5)
     
     # 매크로 해석
+    # 매크로 문자열을 분해하여 적절한 명령으로 변환
     def decode(self, text):
         keys = []
         tokens = re.findall(r'\[.*?\]|\(.*?\)|\d+|\b\w+\s[\d.]+\b|\w+', load[text])
@@ -291,7 +299,7 @@ class AutoClicker:
                 keys.append(token) 
         return keys
 
-    # 키보드 입력시
+    # 키보드 입력시 
     def on_keyboard_event(self, byte_data):
         key = key_mapping.get(byte_to_key.get(byte_data))
         if key == None or not self.window_handler.is_window_foreground():
@@ -336,8 +344,8 @@ class AutoClicker:
                 time.sleep(float(key.split(' ')[-1]))
             except:
                 pass
-        elif key_to_byte.get(key) != None:
-            self.keyboard(key_to_byte[key])
+        elif key_to_byte.get(key) != None: # 단순 매핑
+            self.keyboard(key_to_byte[key]) 
         elif load.get(key) != None: # 매크로 속 매크로
             for text in self.decode(key):
                 self.macro(text)
