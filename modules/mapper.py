@@ -135,10 +135,12 @@ class WindowHandler:
     def activate_widnow(self):
         try:
             time.sleep(0.25)
-            user32.keybd_event(0x25, 0, 0, 3000)
-            time.sleep(0.1)
-            user32.keybd_event(0x25, 0, 2, 3000)
             win32gui.SetForegroundWindow(self.hwnd)
+            if not self.is_window_foreground():
+                user32.keybd_event(0x25, 0, 0, 3000)
+                time.sleep(0.1)
+                user32.keybd_event(0x25, 0, 2, 3000)
+                win32gui.SetForegroundWindow(self.hwnd)
             return True
         except:
             return False
