@@ -10,7 +10,7 @@ text = 'Run'
 title = 'UmaKey'
 enable = True
 
-for file in ['input.exe', 'icon_8.jpg']:
+for file in ['input.exe', 'icon_8.jpg', 'warning.dll']:
     if not os.path.isfile(f'./_internal/{file}'):
         raise FileNotFoundError(f"File not exist : {os.path.join(os.getcwd(), '_internal', file)}")
 
