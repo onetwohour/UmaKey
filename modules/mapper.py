@@ -300,13 +300,18 @@ class AutoClicker:
         tokens = re.findall(r'\[.*?\]|\(.*?\)|\d+|\b\w+\s[\d.]+\b|\w+', load[text])
         for token in tokens:
             if token.startswith('('):
-                keys.append(tuple(map(int, token[1:-1].split(','))))
+                if len(keys) > 0 and str(keys[-1]).startswith('drag') and keys[-1].count('(') < 2:
+                    keys[-1] += ' ' + str(tuple(map(int, token[1:-1].split(','))))
+                else:
+                    keys.append(tuple(map(int, token[1:-1].split(','))))
             elif token.startswith('['):
                 keys.append([int(x) for x in token[1:-1].split(',')])
             elif token.isdigit():
                 keys.append(key_to_byte[token])
             elif re.match(r'\b\w+\s[\d.]+\b', token):
                 keys.append(token)
+            elif key_mapping.get(token) != None:
+                keys.append(key_mapping[token])
             else:
                 keys.append(token) 
         return keys
