@@ -99,13 +99,13 @@ def load_json():
             'y': 1453
         }
 
-        support_key = ["BACKSPACE, TAB, CLEAR, ENTER, SHIFT, CTRL, ALT, PAUSE, CAPS_LOCK, ESC, SPACEBAR, PAGE_UP, PAGE_DOWN, ",
+        support_key = ["BACKSPACE, TAB, CLEAR, ENTER, SHIFT, CTRL, PAUSE, CAPS_LOCK, ESC, SPACEBAR, PAGE_UP, PAGE_DOWN, ",
                     "END, HOME, LEFT_ARROW, UP_ARROW, RIGHT_ARROW, DOWN_ARROW, PRINT_SCREEN, INSERT, DELETE, NUMPAD_0, ",
                     "NUMPAD_1, NUMPAD_2, NUMPAD_3, NUMPAD_4, NUMPAD_5, NUMPAD_6, NUMPAD_7, NUMPAD_8, NUMPAD_9, 0, 1, 2, ",
                     "3, 4, 5, 6, 7, 8, 9, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z, ",
                     "LEFT_WINDOWS, RIGHT_WINDOWS, CONTEXT_MENU, MULTIPLY, ADD, SEPARATOR, SUBTRACT, DECIMAL, DIVIDE, F1, F2, ",
                     "F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F13, F14, F15, F16, F17, F18, F19, F20, F21, F22, F23, F24, ",
-                    "NUM_LOCK, SCROLL_LOCK, LEFT_SHIFT, RIGHT_SHIFT, LEFT_CTRL, RIGHT_CTRL, LEFT_MENU, RIGHT_MENU, ;, +, ,, ",
+                    "NUM_LOCK, SCROLL_LOCK, LEFT_SHIFT, RIGHT_SHIFT, LEFT_CTRL, RIGHT_CTRL, ;, +, ,, ",
                     "-, ., /, `, [, \\, ], '"]
 
         mac = "RIGHT_ARROW, sleep 0.1, RIGHT_ARROW, sleep 0.1, RIGHT_ARROW, sleep 0.1, RIGHT_ARROW"
@@ -155,10 +155,8 @@ class WindowHandler:
                 shell = win32com.client.Dispatch("WScript.Shell")
                 shell.SendKeys('%')
                 win32gui.SetForegroundWindow(self.hwnd)
-                pythoncom.CoUninitialize()
             return True
         except:
-            pythoncom.CoUninitialize()
             return False
 
 class ColorFinder:
@@ -252,10 +250,8 @@ class AutoClicker:
             if not byte_data:
                 self.destroy()
                 if is_run and self.window_handler.is_window_foreground():
-                    time.sleep(0.1)
                     self.open_exe()
-                else:
-                    time.sleep(0.5)
+                time.sleep(0.1)
                 continue
             elif byte_data == "UmaKeyNotFound":
                 raise ProcessLookupError(byte_data)
@@ -263,8 +259,8 @@ class AutoClicker:
             t, text = byte_data.split(' ')
             if int(time.time() * 1000) - int(t) > 100:
                 continue
-            self.on_keyboard_event(int(text))
-            time.sleep(0.1)
+            if self.on_keyboard_event(int(text)):
+                time.sleep(0.1)
         self.runner -= 1
 
     # 처음 실행 시, 게임 창 비율을 확인
@@ -332,8 +328,15 @@ class AutoClicker:
         return True 
             
     def keyboard(self, code):
+        control_pressed = win32api.GetKeyState(win32con.VK_CONTROL) < 0
+        shift_pressed = win32api.GetKeyState(win32con.VK_SHIFT) < 0
+        if control_pressed:
+            win32api.keybd_event(win32con.VK_CONTROL, 0, win32con.KEYEVENTF_EXTENDEDKEY, 3000)
+        if shift_pressed:
+            win32api.keybd_event(win32con.VK_SHIFT, 0, win32con.KEYEVENTF_EXTENDEDKEY, 3000)
         win32api.keybd_event(code, 0, 0, 3000)
-        win32api.keybd_event(code, 0, win32con.KEYEVENTF_KEYUP, 3000)
+        win32api.keybd_event(win32con.VK_CONTROL, 0, win32con.KEYEVENTF_EXTENDEDKEY | win32con.KEYEVENTF_KEYUP, 3000)
+        win32api.keybd_event(win32con.VK_SHIFT, 0, win32con.KEYEVENTF_EXTENDEDKEY | win32con.KEYEVENTF_KEYUP, 3000)
 
     def click(self, x, y):
         win32api.SetCursorPos((x, y))
@@ -414,11 +417,12 @@ class AutoClicker:
             except Exception as e:
                 self.error = e
                 self.runner -= 1
+                print(e)
         else:
             self.destroy()
             del self.window_handler
             self.window_handler = None
 
 if __name__ == '__main__':
-    auto_clicker = AutoClicker(key_mapping)
+    auto_clicker = AutoClicker()
     auto_clicker.toggle()
