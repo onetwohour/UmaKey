@@ -1,6 +1,8 @@
 import win32gui
 import win32con
 import win32api
+import win32com.client
+import pythoncom
 import numpy as np
 import cv2
 import subprocess
@@ -84,11 +86,12 @@ def load_json():
             'F':     [145, 96, 239],    # 양호실
             'T':     [217, 81, 242],    # 레슨
             'G':     [244, 69, 137],    # 레이스
-            'TAB':   'Drag',            # 훈련 돌아보기
+            'NUMPAD_0':   'MAC',        # 훈련 돌아보기 1
             'A':    [225, 255, 178],    # 1번 선택지
             'S':    [255, 247, 192],    # 2번 선택지
             'D':    [255, 228, 239],    # 3번 선택지
             '/':    (730, 1320),
+            "TAB": "drag (20, 1230) (788, 1230)" # 훈련 돌아보기 2
         }
 
         screen_size = {
@@ -105,11 +108,20 @@ def load_json():
                     "NUM_LOCK, SCROLL_LOCK, LEFT_SHIFT, RIGHT_SHIFT, LEFT_CTRL, RIGHT_CTRL, LEFT_MENU, RIGHT_MENU, ;, +, ,, ",
                     "-, ., /, `, [, \\, ], '"]
 
-        Drag = "RIGHT_ARROW, sleep 0.1, RIGHT_ARROW, sleep 0.1, RIGHT_ARROW, sleep 0.1, RIGHT_ARROW"
+        mac = "RIGHT_ARROW, sleep 0.1, RIGHT_ARROW, sleep 0.1, RIGHT_ARROW, sleep 0.1, RIGHT_ARROW"
+
+        text = {
+            "RGB": "[0, 0, 0]",
+            "POS": "(0, 0)",
+            "KEY": "KEY name",
+            "DRAG": "drag (from pos) (to pos)",
+            "DELAY": "sleep 0.0",
+            "MACRO": "MACRO name"
+        }
 
         with open('./config.json', 'w') as f:
             save = {key:str(value) for key, value in key_mapping.items()}
-            json.dump({"support_key":support_key, "key_mapping":save, "screen_size":screen_size, "Drag":Drag}, f, indent=4)
+            json.dump({"support_key":support_key, "type":text, "key_mapping":save, "screen_size":screen_size, "MAC":mac}, f, indent=4)
     else:
         try:
             with open('./config.json', 'r') as f:
@@ -136,13 +148,17 @@ class WindowHandler:
     def activate_widnow(self):
         try:
             time.sleep(0.25)
-            win32gui.SetForegroundWindow(self.hwnd)
-            user32.keybd_event(0x25, 0, 0, 3000)
-            time.sleep(0.1)
-            user32.keybd_event(0x25, 0, 2, 3000)
-            win32gui.SetForegroundWindow(self.hwnd)
+            if win32gui.IsIconic(self.hwnd):
+                win32gui.ShowWindow(self.hwnd, win32con.SW_RESTORE)
+            else:
+                pythoncom.CoInitialize()
+                shell = win32com.client.Dispatch("WScript.Shell")
+                shell.SendKeys('%')
+                win32gui.SetForegroundWindow(self.hwnd)
+                pythoncom.CoUninitialize()
             return True
         except:
+            pythoncom.CoUninitialize()
             return False
 
 class ColorFinder:
@@ -321,8 +337,27 @@ class AutoClicker:
 
     def click(self, x, y):
         win32api.SetCursorPos((x, y))
-        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, x, y, 0, 0)
-        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, x, y, 0, 0)
+        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
+        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
+
+    def drag(self, pos):
+        fr, to = [tuple(map(int, match)) for match in re.findall(r'\((\w+), (\w+)\)', pos)]
+        x, y, tx, ty = *fr, *to
+        left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
+        x, y, tx, ty = x + left, y + top, tx + left, ty + top
+        left, top, right, bottom = left + 20, top + 60, right - 20, bottom - 20
+        x, y, tx, ty = max(left, min(x, right)), max(top, min(y, bottom)), max(left, min(tx, right)), max(top, min(ty, bottom))
+        win32api.SetCursorPos((x, y))
+        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
+        time.sleep(0.01)
+        dx, dy = (tx - x) // 40, (ty - y) // 40
+        for i in range(40):
+            x += dx
+            y += dy
+            win32api.SetCursorPos((x, y))
+            time.sleep(0.0001)
+        win32api.SetCursorPos((tx, ty))
+        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
 
     # 적절한 기능 수행
     def macro(self, key):
@@ -341,7 +376,12 @@ class AutoClicker:
             self.click(*key)
         elif key.startswith('sleep'): # 딜레이
             try:
-                time.sleep(float(key.split(' ')[-1]))
+                time.sleep(float(key.lstrip('sleep ')))
+            except:
+                pass
+        elif key.startswith('drag'):
+            try:
+                self.drag(key.lstrip('drag '))
             except:
                 pass
         elif key_to_byte.get(key) != None: # 단순 매핑

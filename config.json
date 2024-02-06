@@ -9,6 +9,14 @@
         "NUM_LOCK, SCROLL_LOCK, LEFT_SHIFT, RIGHT_SHIFT, LEFT_CTRL, RIGHT_CTRL, LEFT_MENU, RIGHT_MENU, ;, +, ,, ",
         "-, ., /, `, [, \\, ], '"
     ],
+    "type": {
+        "RGB": "[0, 0, 0]",
+        "POS": "(0, 0)",
+        "KEY": "KEY name",
+        "DRAG": "drag (from pos) (to pos)",
+        "DELAY": "sleep 0.0",
+        "MACRO": "MACRO name"
+    },
     "key_mapping": {
         "SPACEBAR": "[99, 182, 0]",
         "`": "[231, 231, 236]",
@@ -19,15 +27,16 @@
         "F": "[145, 96, 239]",
         "T": "[217, 81, 242]",
         "G": "[244, 69, 137]",
-        "TAB": "Drag",
+        "NUMPAD_0": "MAC",
         "A": "[225, 255, 178]",
         "S": "[255, 247, 192]",
         "D": "[255, 228, 239]",
-        "/": "(730, 1320)"
+        "/": "(730, 1320)",
+        "TAB": "drag (20, 1230) (788, 1230)"
     },
     "screen_size": {
         "x": 808,
         "y": 1453
     },
-    "Drag": "RIGHT_ARROW, sleep 0.1, RIGHT_ARROW, sleep 0.1, RIGHT_ARROW, sleep 0.1, RIGHT_ARROW"
+    "MAC": "RIGHT_ARROW, sleep 0.1, RIGHT_ARROW, sleep 0.1, RIGHT_ARROW, sleep 0.1, RIGHT_ARROW"
 }
