@@ -4,11 +4,12 @@ from PIL import Image
 import os, time
 from threading import Thread
 import subprocess
-from modules import mapper, posinfo
+from modules import mapper, posinfo, update
 
 text = 'Run'
 title = 'UmaKey'
 enable = True
+VERSION = "v0.0.42"
 
 for file in ['input.exe', 'ghost.ico', 'warning.dll']:
     if not os.path.isfile(f'./_internal/{file}'):
@@ -64,6 +65,7 @@ def exit():
 if __name__ == '__main__':
     if is_process_running(title):
         os._exit(0)
+    update.check_new_release("onetwohour", "UmaKey", VERSION)
     global auto_clicker, icon
     auto_clicker = mapper.AutoClicker()
     img = Image.open('./_internal/ghost.ico')
