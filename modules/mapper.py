@@ -350,8 +350,9 @@ class AutoClicker:
 
     def drag(self, pos):
         fr, to = [tuple(map(int, match)) for match in re.findall(r'\((\w+), (\w+)\)', pos)]
-        x, y, tx, ty = *fr, *to
         left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
+        x, y = fr[0] * (right - left) // ratio[0], fr[1] * (bottom - top) // ratio[1]
+        tx, ty = to[0] * (right - left) // ratio[0], to[1] * (bottom - top) // ratio[1]
         x, y, tx, ty = x + left, y + top, tx + left, ty + top
         left, top, right, bottom = left + 20, top + 60, right - 20, bottom - 20
         x, y, tx, ty = max(left, min(x, right)), max(top, min(y, bottom)), max(left, min(tx, right)), max(top, min(ty, bottom))
