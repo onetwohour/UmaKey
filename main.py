@@ -10,7 +10,7 @@ text = 'Run'
 title = 'UmaKey'
 enable = True
 
-for file in ['input.exe', 'icon_8.jpg', 'warning.dll']:
+for file in ['input.exe', 'ghost.ico', 'warning.dll']:
     if not os.path.isfile(f'./_internal/{file}'):
         raise FileNotFoundError(f"File not exist : {os.path.join(os.getcwd(), '_internal', file)}")
 
@@ -66,7 +66,7 @@ if __name__ == '__main__':
         os._exit(0)
     global auto_clicker, icon
     auto_clicker = mapper.AutoClicker()
-    img = Image.open('./_internal/icon_8.jpg')
+    img = Image.open('./_internal/ghost.ico')
     menu = (item(lambda t : text, action, enabled=lambda e : enable), item('Inspector', getInfo), item('Exit', exit))
     icon = pystray.Icon(title, img, title, menu)
     action()
