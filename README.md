@@ -139,7 +139,7 @@ key_mapping과 마찬가지로, 색깔을 입력하고 싶다면 대괄호 안�
 코드 실행 시 필요한 패키지
 
 ```
-pip install pywin32 numpy opencv-python-headless Pillow pystray
+pip install pywin32 numpy opencv-python-headless Pillow pystray psutil
 ```
 
 ---
