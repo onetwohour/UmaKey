@@ -11,7 +11,7 @@ from modules import mapper, posinfo, update
 text = 'Run'
 title = 'UmaKey'
 enable = True
-VERSION = "v0.0.43"
+VERSION = "v0.0.44"
 
 for file in ['input.exe', 'ghost.ico', 'warning.dll']:
     if not os.path.isfile(f'./_internal/{file}'):
