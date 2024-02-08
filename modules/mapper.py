@@ -121,7 +121,7 @@ def load_json():
 
         with open('./config.json', 'w') as f:
             save = {key:str(value) for key, value in key_mapping.items()}
-            json.dump({"support_key":support_key, "type":text, "key_mapping":save, "screen_size":screen_size, "MAC":mac}, f, indent=4)
+            json.dump({"window_title":window_title, "support_key":support_key, "type":text, "key_mapping":save, "screen_size":screen_size, "MAC":mac}, f, indent=4)
     else:
         try:
             with open('./config.json', 'r') as f:
@@ -129,6 +129,9 @@ def load_json():
 
             key_mapping = {key:convert_value(value) for key, value in load["key_mapping"].items()}
             screen_size = load["screen_size"]
+            if load.get('window_title') != None:
+                global window_title
+                window_title = load['window_title']
         except json.JSONDecodeError as e:
             raise json.JSONDecodeError("config.json has wrong syntax.", e.doc, e.pos)
         
