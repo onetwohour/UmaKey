@@ -4,12 +4,14 @@ from PIL import Image
 import os, time
 from threading import Thread
 import subprocess
+import ctypes
+from ctypes import windll, byref
 from modules import mapper, posinfo, update
 
 text = 'Run'
 title = 'UmaKey'
 enable = True
-VERSION = "v0.0.42"
+VERSION = "v0.0.43"
 
 for file in ['input.exe', 'ghost.ico', 'warning.dll']:
     if not os.path.isfile(f'./_internal/{file}'):
@@ -53,6 +55,45 @@ def getInfo():
     
     posinfo.toggle()
 
+def run_script(cmd, args):
+    class STARTUPINFO(ctypes.Structure):
+        _fields_ = [
+            ("cb", ctypes.wintypes.DWORD),
+            ("lpReserved", ctypes.wintypes.LPWSTR),
+            ("lpDesktop", ctypes.wintypes.LPWSTR),
+            ("lpTitle", ctypes.wintypes.LPWSTR),
+            ("dwX", ctypes.wintypes.DWORD),
+            ("dwY", ctypes.wintypes.DWORD),
+            ("dwXSize", ctypes.wintypes.DWORD),
+            ("dwYSize", ctypes.wintypes.DWORD),
+            ("dwXCountChars", ctypes.wintypes.DWORD),
+            ("dwYCountChars", ctypes.wintypes.DWORD),
+            ("dwFillAttribute", ctypes.wintypes.DWORD),
+            ("dwFlags", ctypes.wintypes.DWORD),
+            ("wShowWindow", ctypes.wintypes.WORD),
+            ("cbReserved2", ctypes.wintypes.WORD),
+            ("lpReserved2", ctypes.c_void_p),
+            ("hStdInput", ctypes.wintypes.HANDLE),
+            ("hStdOutput", ctypes.wintypes.HANDLE),
+            ("hStdError", ctypes.wintypes.HANDLE)
+        ]
+
+    startupinfo = STARTUPINFO()
+    process_information = ctypes.c_void_p()
+
+    windll.kernel32.CreateProcessW(
+        None,
+        f'"{cmd}" {args}',
+        None,
+        None,
+        False,
+        0,
+        None,
+        None,
+        byref(startupinfo),
+        byref(process_information)
+    )
+
 def exit():
     global auto_clicker, icon
     auto_clicker.__del__()
@@ -65,7 +106,11 @@ def exit():
 if __name__ == '__main__':
     if is_process_running(title):
         os._exit(0)
-    update.check_new_release("onetwohour", "UmaKey", VERSION)
+    download, url = update.check_new_release("onetwohour", "UmaKey", VERSION)
+    exclude_files = ['config.json']
+    if download:
+        run_script("update.exe", f"{url} {' '.join(exclude_files)}")
+        os._exit(0)
     global auto_clicker, icon
     auto_clicker = mapper.AutoClicker()
     img = Image.open('./_internal/ghost.ico')

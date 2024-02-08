@@ -359,11 +359,12 @@ class AutoClicker:
         win32api.SetCursorPos((x, y))
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
         time.sleep(0.01)
-        dx, dy = (tx - x) // 40, (ty - y) // 40
-        for i in range(40):
+        distance = min(max(abs(fr[0] - to[0]) / 20, abs(fr[1] - to[1]) / 20, 1), 100)
+        dx, dy = (tx - x) / distance, (ty - y) / distance
+        for _ in range(int(distance)):
             x += dx
             y += dy
-            win32api.SetCursorPos((x, y))
+            win32api.SetCursorPos((int(x), int(y)))
             time.sleep(0.0001)
         win32api.SetCursorPos((tx, ty))
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
@@ -382,6 +383,8 @@ class AutoClicker:
             left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
             key = key[0] * (right - left) // ratio[0], key[1] * (bottom - top) // ratio[1]
             key = tuple(x + y for x, y in zip(key, (left, top)))
+            left, top, right, bottom = left + 20, top + 60, right - 20, bottom - 20
+            key = max(left, min(key[0], right)), max(top, min(key[1], bottom))
             self.click(*key)
         elif key.startswith('sleep'): # 딜레이
             try:
