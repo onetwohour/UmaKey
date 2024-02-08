@@ -10,6 +10,8 @@ import time
 import os
 import json
 import re
+import psutil
+import win32process
 from PIL import ImageGrab
 from threading import Thread
 from ctypes import windll, cdll, c_wchar_p
@@ -74,7 +76,7 @@ def convert_value(value_str):
         return value_str
 
 def load_json():
-    global key_mapping, ratio, load
+    global key_mapping, ratio, load, window_title
     if not os.path.isfile('./config.json'):
         key_mapping = {
             'SPACEBAR': [99,182,0],        # 초록버튼
@@ -130,12 +132,27 @@ def load_json():
             key_mapping = {key:convert_value(value) for key, value in load["key_mapping"].items()}
             screen_size = load["screen_size"]
             if load.get('window_title') != None:
-                global window_title
                 window_title = load['window_title']
         except json.JSONDecodeError as e:
             raise json.JSONDecodeError("config.json has wrong syntax.", e.doc, e.pos)
         
     ratio = screen_size['x'], screen_size['y']
+
+def find_process_by_name(process_name):
+    for proc in psutil.process_iter(['pid', 'name']):
+        if proc.info['name'] == process_name:
+            return proc.info['pid']
+    return None
+
+def get_windows_by_name(window_name):
+    windows = []
+    def callback(hwnd, _):
+        if window_name == win32gui.GetWindowText(hwnd):
+            windows.append(hwnd)
+        return True
+
+    win32gui.EnumWindows(callback, None)
+    return windows
 
 class WindowHandler:
     def __init__(self):
@@ -145,7 +162,13 @@ class WindowHandler:
         return self.hwnd == win32gui.GetForegroundWindow()
     
     def update(self):
-        self.hwnd = win32gui.FindWindow(None, window_title)
+        process = find_process_by_name('umamusume.exe')
+        for hwnd in get_windows_by_name(window_title):
+            _, pid = win32process.GetWindowThreadProcessId(hwnd)
+            if pid == process:
+                self.hwnd = hwnd
+                return
+        self.hwnd = 0
 
     # 화면 활성화 시 오류 발생 방지
     def activate_widnow(self):
