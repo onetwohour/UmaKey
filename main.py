@@ -107,7 +107,7 @@ if __name__ == '__main__':
     if is_process_running(title):
         os._exit(0)
     download, url = update.check_new_release("onetwohour", "UmaKey", VERSION)
-    exclude_files = ['config.json']
+    exclude_files = ['config.json', 'update.exe']
     if download:
         run_script("update.exe", f"{url} {' '.join(exclude_files)}")
         os._exit(0)
