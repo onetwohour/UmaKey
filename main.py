@@ -123,7 +123,7 @@ if __name__ == '__main__':
     download, release = update.check_new_release("onetwohour", "UmaKey", VERSION)
     if download:
         message = f"새로운 업데이트 : {release['tag_name']}"
-        alert()
+        Thread(target=alert).start()
     exclude_files = ('config.json', 'update.exe')
     global auto_clicker, icon
     auto_clicker = mapper.AutoClicker()
