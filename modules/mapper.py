@@ -62,13 +62,13 @@ byte_to_key = {
 key_to_byte = {v: k for k, v in byte_to_key.items()}
 
 def convert_value(value_str):
-    split = value_str.split(',')
+    split = value_str[1:-1].split(',')
     # 리스트 형태인 경우
     if value_str.startswith("[") and value_str.endswith("]") and len(split) == 3:
-        return [int(x) for x in value_str[1:-1].split(",")]
+        return [int(x) for x in split]
     # 튜플 형태인 경우
     elif value_str.startswith("(") and value_str.endswith(")") and len(split) == 2:
-        return tuple(int(x) for x in value_str[1:-1].split(","))
+        return tuple(int(x) for x in split)
     # 키 형태인 경우
     elif key_to_byte.get(value_str) != None:
         return key_to_byte[value_str]
@@ -77,50 +77,49 @@ def convert_value(value_str):
 
 def load_json():
     global key_mapping, ratio, load, window_title
+    key_mapping = {
+        'SPACEBAR': [99,182,0],        # 초록버튼
+        '`':     [231, 231, 236],   # 흰 버튼
+        'Q':     [124, 203, 42],    # 휴식
+        'W':     [41, 122, 207],    # 트레이닝
+        'E':     [40, 191, 214],    # 스킬
+        'R':     [247, 154, 8],     # 외출
+        'F':     [145, 96, 239],    # 양호실
+        'T':     [217, 81, 242],    # 레슨
+        'G':     [244, 69, 137],    # 레이스
+        'NUMPAD_0':   'MAC',        # 훈련 돌아보기 1
+        'A':    [225, 255, 178],    # 1번 선택지
+        'S':    [255, 247, 192],    # 2번 선택지
+        'D':    [255, 228, 239],    # 3번 선택지
+        '/':    (730, 1320),
+        "TAB": "drag (20, 1230) (788, 1230)" # 훈련 돌아보기 2
+    }
+
+    screen_size = {
+        'x': 808,
+        'y': 1453
+    }
+
+    support_key = ["BACKSPACE, TAB, CLEAR, ENTER, SHIFT, CTRL, PAUSE, CAPS_LOCK, ESC, SPACEBAR, PAGE_UP, PAGE_DOWN, ",
+                "END, HOME, LEFT_ARROW, UP_ARROW, RIGHT_ARROW, DOWN_ARROW, PRINT_SCREEN, INSERT, DELETE, NUMPAD_0, ",
+                "NUMPAD_1, NUMPAD_2, NUMPAD_3, NUMPAD_4, NUMPAD_5, NUMPAD_6, NUMPAD_7, NUMPAD_8, NUMPAD_9, 0, 1, 2, ",
+                "3, 4, 5, 6, 7, 8, 9, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z, ",
+                "LEFT_WINDOWS, RIGHT_WINDOWS, CONTEXT_MENU, MULTIPLY, ADD, SEPARATOR, SUBTRACT, DECIMAL, DIVIDE, F1, F2, ",
+                "F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F13, F14, F15, F16, F17, F18, F19, F20, F21, F22, F23, F24, ",
+                "NUM_LOCK, SCROLL_LOCK, LEFT_SHIFT, RIGHT_SHIFT, LEFT_CTRL, RIGHT_CTRL, ;, +, ,, ",
+                "-, ., /, `, [, \\, ], '"]
+
+    mac = "RIGHT_ARROW, sleep 0.1, RIGHT_ARROW, sleep 0.1, RIGHT_ARROW, sleep 0.1, RIGHT_ARROW"
+
+    text = {
+        "RGB": "[0, 0, 0]",
+        "POS": "(0, 0)",
+        "KEY": "KEY name",
+        "DRAG": "drag (from pos) (to pos)",
+        "DELAY": "sleep 0.0",
+        "MACRO": "MACRO name"
+    }
     if not os.path.isfile('./config.json'):
-        key_mapping = {
-            'SPACEBAR': [99,182,0],        # 초록버튼
-            '`':     [231, 231, 236],   # 흰 버튼
-            'Q':     [124, 203, 42],    # 휴식
-            'W':     [41, 122, 207],    # 트레이닝
-            'E':     [40, 191, 214],    # 스킬
-            'R':     [247, 154, 8],     # 외출
-            'F':     [145, 96, 239],    # 양호실
-            'T':     [217, 81, 242],    # 레슨
-            'G':     [244, 69, 137],    # 레이스
-            'NUMPAD_0':   'MAC',        # 훈련 돌아보기 1
-            'A':    [225, 255, 178],    # 1번 선택지
-            'S':    [255, 247, 192],    # 2번 선택지
-            'D':    [255, 228, 239],    # 3번 선택지
-            '/':    (730, 1320),
-            "TAB": "drag (20, 1230) (788, 1230)" # 훈련 돌아보기 2
-        }
-
-        screen_size = {
-            'x': 808,
-            'y': 1453
-        }
-
-        support_key = ["BACKSPACE, TAB, CLEAR, ENTER, SHIFT, CTRL, PAUSE, CAPS_LOCK, ESC, SPACEBAR, PAGE_UP, PAGE_DOWN, ",
-                    "END, HOME, LEFT_ARROW, UP_ARROW, RIGHT_ARROW, DOWN_ARROW, PRINT_SCREEN, INSERT, DELETE, NUMPAD_0, ",
-                    "NUMPAD_1, NUMPAD_2, NUMPAD_3, NUMPAD_4, NUMPAD_5, NUMPAD_6, NUMPAD_7, NUMPAD_8, NUMPAD_9, 0, 1, 2, ",
-                    "3, 4, 5, 6, 7, 8, 9, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z, ",
-                    "LEFT_WINDOWS, RIGHT_WINDOWS, CONTEXT_MENU, MULTIPLY, ADD, SEPARATOR, SUBTRACT, DECIMAL, DIVIDE, F1, F2, ",
-                    "F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F13, F14, F15, F16, F17, F18, F19, F20, F21, F22, F23, F24, ",
-                    "NUM_LOCK, SCROLL_LOCK, LEFT_SHIFT, RIGHT_SHIFT, LEFT_CTRL, RIGHT_CTRL, ;, +, ,, ",
-                    "-, ., /, `, [, \\, ], '"]
-
-        mac = "RIGHT_ARROW, sleep 0.1, RIGHT_ARROW, sleep 0.1, RIGHT_ARROW, sleep 0.1, RIGHT_ARROW"
-
-        text = {
-            "RGB": "[0, 0, 0]",
-            "POS": "(0, 0)",
-            "KEY": "KEY name",
-            "DRAG": "drag (from pos) (to pos)",
-            "DELAY": "sleep 0.0",
-            "MACRO": "MACRO name"
-        }
-
         with open('./config.json', 'w') as f:
             save = {key:str(value) for key, value in key_mapping.items()}
             json.dump({"window_title":window_title, "support_key":support_key, "type":text, "key_mapping":save, "screen_size":screen_size, "MAC":mac}, f, indent=4)
@@ -129,8 +128,10 @@ def load_json():
             with open('./config.json', 'r') as f:
                 load = json.load(f)
 
-            key_mapping = {key:convert_value(value) for key, value in load["key_mapping"].items()}
-            screen_size = load["screen_size"]
+            if load.get('key_mapping') != None:
+                key_mapping = {key:convert_value(value) for key, value in load["key_mapping"].items()}
+            if load.get('screen_size') != None:
+                screen_size = load["screen_size"]
             if load.get('window_title') != None:
                 window_title = load['window_title']
         except json.JSONDecodeError as e:
@@ -201,17 +202,17 @@ class ColorFinder:
         self.max_height = int((bottom - top) // (5 / 1))
         self.max_width = (right - left) // 2
 
-        image = ImageGrab.grab(bbox=(left, top + self.max_height, right, bottom), all_screens=True)
+        image = ImageGrab.grab(bbox=(left + 20, top + self.max_height, right - 20, bottom - 20))
         img = np.array(image)
         image.close()
 
-        lower_bound = np.clip(np.array([target_color[0] - tolerance, target_color[1] - tolerance, target_color[2] - tolerance]), 0, 255)
-        upper_bound = np.clip(np.array([target_color[0] + tolerance, target_color[1] + tolerance, target_color[2] + tolerance]), 0, 255)
+        lower_bound = np.maximum(np.array(target_color) - tolerance, 0)
+        upper_bound = np.minimum(np.array(target_color) + tolerance, 255)
         mask = cv2.inRange(img, lower_bound, upper_bound)
 
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
-        contours = [contour for contour in contours if cv2.boundingRect(contour)[2] <= self.max_width and cv2.boundingRect(contour)[3] <= self.max_height]
+        contours = (contour for contour in contours if cv2.boundingRect(contour)[2] <= self.max_width and cv2.boundingRect(contour)[3] <= self.max_height)
         if not contours:
             return False, False
 
@@ -246,11 +247,11 @@ class AutoClicker:
         self.timer = time.time()
         self.runner += 1
 
-        if self.window_handler == None:
+        if self.window_handler is None:
             self.window_handler = WindowHandler()
 
         # C++ 프로그램 실행
-        if self.cpp_process == None:
+        if self.cpp_process is None:
             if not os.path.isfile('./_internal/input.exe'):
                 raise FileNotFoundError(f"File not exist : {os.path.join(os.getcwd(), '_internal', 'input.exe')}")
             self.open_exe()
@@ -259,7 +260,7 @@ class AutoClicker:
         while is_run:
             if not win32gui.IsWindow(self.window_handler.hwnd):
                 self.window_handler.update()
-                if self.window_handler.hwnd == 0:
+                if not self.window_handler.hwnd:
                     self.destroy()
                     time.sleep(0.5)
                     continue
@@ -271,8 +272,7 @@ class AutoClicker:
             
             # 데이터를 읽어옴
             if self.cpp_process != None and self.window_handler.is_window_foreground():
-                byte_data = self.cpp_process.stdout.readline()[:-1]
-            
+                byte_data = self.cpp_process.stdout.readline().strip()
             if not byte_data:
                 self.destroy()
                 if is_run and self.window_handler.is_window_foreground():
@@ -302,18 +302,21 @@ class AutoClicker:
             if win32gui.IsIconic(self.window_handler.hwnd):
                 timeout += 0.1
             elif abs(((bottom - top) / (right - left)) / (ratio[1] / ratio[0]) - 1) > 0.1:
-                if not os.path.isfile('./_internal/warning.dll'):
-                    raise FileNotFoundError(f"File not exist : {os.path.join(os.getcwd(), '_internal', 'warning.dll')}")
-                dll = cdll.LoadLibrary(os.path.join(os.getcwd(), '_internal', 'warning.dll')).show_warning_dialog
-                dll.argtypes = [c_wchar_p]
-                dll.restype = None
-                dll("게임 화면 비율이 다릅니다.")
-                del dll
+                self.show_warning_dialog("게임 화면 비율이 다릅니다.")
                 break
             time.sleep(0.1)
+
+    def show_warning_dialog(self, message):
+        if not os.path.isfile('./_internal/warning.dll'):
+            raise FileNotFoundError(f"File not exist : {os.path.join(os.getcwd(), '_internal', 'warning.dll')}")
+        dll = cdll.LoadLibrary(os.path.join(os.getcwd(), '_internal', 'warning.dll')).show_warning_dialog
+        dll.argtypes = [c_wchar_p]
+        dll.restype = None
+        dll(message)
+    
     # 게임 창이 꺼져있다면, 키보드 입력 감지 종료
     def check_screen(self):
-        while is_run and self.cpp_process != None and self.error == "":
+        while is_run and self.cpp_process is not None and self.error == "":
             if not self.window_handler.is_window_foreground():
                 self.destroy()
                 break
@@ -336,7 +339,7 @@ class AutoClicker:
                 keys.append(key_to_byte[token])
             elif re.match(r'\b\w+\s[\d.]+\b', token):
                 keys.append(token)
-            elif key_mapping.get(token) != None:
+            elif key_mapping.get(token) is not None:
                 keys.append(key_mapping[token])
             else:
                 keys.append(token) 
@@ -345,17 +348,16 @@ class AutoClicker:
     # 키보드 입력시 
     def on_keyboard_event(self, byte_data):
         key = key_mapping.get(byte_to_key.get(byte_data))
-        if key == None or not self.window_handler.is_window_foreground():
+        if key is None or not self.window_handler.is_window_foreground():
             self.keyboard(byte_data)
             return False
-        if type(key) == str and load.get(key) != None:
+        if type(key) == str and load.get(key) is not None:
             keys = self.decode(key)  
         else:
-            keys = [key]
+            keys = (key,)
 
         for key in keys:
             self.macro(key)
-
         return True 
             
     def keyboard(self, code):
@@ -366,8 +368,10 @@ class AutoClicker:
         if shift_pressed:
             win32api.keybd_event(win32con.VK_SHIFT, 0, win32con.KEYEVENTF_EXTENDEDKEY, 3000)
         win32api.keybd_event(code, 0, 0, 3000)
-        win32api.keybd_event(win32con.VK_CONTROL, 0, win32con.KEYEVENTF_EXTENDEDKEY | win32con.KEYEVENTF_KEYUP, 3000)
-        win32api.keybd_event(win32con.VK_SHIFT, 0, win32con.KEYEVENTF_EXTENDEDKEY | win32con.KEYEVENTF_KEYUP, 3000)
+        if control_pressed:
+            win32api.keybd_event(win32con.VK_CONTROL, 0, win32con.KEYEVENTF_EXTENDEDKEY | win32con.KEYEVENTF_KEYUP, 3000)
+        if shift_pressed:
+            win32api.keybd_event(win32con.VK_SHIFT, 0, win32con.KEYEVENTF_EXTENDEDKEY | win32con.KEYEVENTF_KEYUP, 3000)
 
     def click(self, x, y):
         win32api.SetCursorPos((x, y))
@@ -375,24 +379,30 @@ class AutoClicker:
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
 
     def drag(self, pos):
-        fr, to = [tuple(map(int, match)) for match in re.findall(r'\((\w+), (\w+)\)', pos)]
+        (x1, y1), (x2, y2) = (tuple(map(int, match)) for match in re.findall(r'\((\w+), (\w+)\)', pos))
         left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
-        x, y = fr[0] * (right - left) // ratio[0], fr[1] * (bottom - top) // ratio[1]
-        tx, ty = to[0] * (right - left) // ratio[0], to[1] * (bottom - top) // ratio[1]
-        x, y, tx, ty = x + left, y + top, tx + left, ty + top
+        distance = min(max(abs(x1 - x2) / 20, abs(y1 - y2) / 20, 1), 40)
+        width = right - left
+        height = bottom - top
+        x1 = (x1 * width) // ratio[0] + left
+        y1 = (y1 * height) // ratio[1] + top
+        x2 = (x2 * width) // ratio[0] + left
+        y2 = (y2 * height) // ratio[1] + top
         left, top, right, bottom = left + 20, top + 60, right - 20, bottom - 20
-        x, y, tx, ty = max(left, min(x, right)), max(top, min(y, bottom)), max(left, min(tx, right)), max(top, min(ty, bottom))
-        win32api.SetCursorPos((x, y))
+        x1 = left if x1 < left else (right if x1 > right else x1)
+        y1 = top if y1 < top else (bottom if y1 > bottom else y1)
+        x2 = left if x2 < left else (right if x2 > right else x2)
+        y2 = top if y2 < top else (bottom if y2 > bottom else y2)
+        win32api.SetCursorPos((x1, y1))
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
         time.sleep(0.01)
-        distance = min(max(abs(fr[0] - to[0]) / 20, abs(fr[1] - to[1]) / 20, 1), 100)
-        dx, dy = (tx - x) / distance, (ty - y) / distance
+        dx, dy = (x2 - x1) / distance, (y2 - y1) / distance
         for _ in range(int(distance)):
-            x += dx
-            y += dy
-            win32api.SetCursorPos((int(x), int(y)))
+            x1 += dx
+            y1 += dy
+            win32api.SetCursorPos((int(x1), int(y1)))
             time.sleep(0.0001)
-        win32api.SetCursorPos((tx, ty))
+        win32api.SetCursorPos((x2, y2))
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
 
     # 적절한 기능 수행
@@ -400,7 +410,7 @@ class AutoClicker:
         if type(key) == list: # 색깔 기반
             self.color_finder = ColorFinder(self.window_handler.hwnd, self.timer)
             cx, cy = self.color_finder.find_color(key, self.tolerance)
-            if cx != None and cy != None:
+            if cx is not None and cy is not None:
                 if cx or cy:
                     self.click(cx, cy)
                     cx = cy = None
@@ -422,9 +432,9 @@ class AutoClicker:
                 self.drag(key.lstrip('drag '))
             except:
                 pass
-        elif key_to_byte.get(key) != None: # 단순 매핑
+        elif key_to_byte.get(key) is not None: # 단순 매핑
             self.keyboard(key_to_byte[key]) 
-        elif load.get(key) != None: # 매크로 속 매크로
+        elif load.get(key) is not None: # 매크로 속 매크로
             for text in self.decode(key):
                 self.macro(text)
 

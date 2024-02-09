@@ -11,11 +11,7 @@ from modules import mapper, posinfo, update
 text = 'Run'
 title = 'UmaKey'
 enable = True
-VERSION = "v0.0.52"
-
-for file in ['input.exe', 'ghost.ico', 'warning.dll']:
-    if not os.path.isfile(f'./_internal/{file}'):
-        raise FileNotFoundError(f"File not exist : {os.path.join(os.getcwd(), '_internal', file)}")
+VERSION = "v0.0.53"
 
 def is_process_running(process_name):
     result = subprocess.run(["tasklist", "/FI", f"IMAGENAME eq {process_name}.exe"], capture_output=True, text=True)
@@ -103,11 +99,15 @@ def exit():
     del auto_clicker, icon
     os._exit(0)
 
+for file in 'input.exe', 'ghost.ico', 'warning.dll':
+    if not os.path.isfile(f'./_internal/{file}'):
+        raise FileNotFoundError("File not Found : ", os.path.join(os.getcwd(), f'./_internal/{file}'))
+
 if __name__ == '__main__':
     if is_process_running(title):
         os._exit(0)
     download, url = update.check_new_release("onetwohour", "UmaKey", VERSION)
-    exclude_files = ['config.json', 'update.exe']
+    exclude_files = ('config.json', 'update.exe')
     if download:
         run_script("update.exe", f"{url} {' '.join(exclude_files)}")
         os._exit(0)

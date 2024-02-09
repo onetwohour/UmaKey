@@ -10,14 +10,13 @@ def check_new_release(repo_owner, repo_name, current_version):
             latest_release = json.loads(response.read())
             latest_version = latest_release['tag_name']
             if latest_version != current_version:
-                if not os.path.isfile('./_internal/warning.dll'):
-                    raise FileNotFoundError(f"File not exist : {os.path.join(os.getcwd(), '_internal', 'warning.dll')}")
                 file_name = os.path.join(os.getcwd(), '_internal', 'warning.dll')
-                dll = cdll.LoadLibrary(file_name).show_warning_dialog
-                dll.argtypes = [c_wchar_p]
-                dll.restype = None
-                dll(f"새로운 업데이트 : {latest_version}\n업데이트를 위해 프로그램이 재시작됩니다.")
-                del dll
+                if os.path.isfile('./_internal/warning.dll'):
+                    dll = cdll.LoadLibrary(file_name).show_warning_dialog
+                    dll.argtypes = [c_wchar_p]
+                    dll.restype = None
+                    dll(f"새로운 업데이트 : {latest_version}\n업데이트를 위해 프로그램이 재시작됩니다.")
+                    del dll
                 return True, latest_release['assets'][0]['browser_download_url']
             return False, None
     except Exception as e:
