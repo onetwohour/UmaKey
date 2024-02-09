@@ -5,7 +5,7 @@ import os, time
 from threading import Thread
 import subprocess
 import ctypes
-from ctypes import windll, byref
+from ctypes import windll, byref, cdll, c_wchar_p
 from modules import mapper, posinfo, update
 
 text = 'Run'
@@ -50,6 +50,15 @@ def getInfo():
         icon.update_menu()
     
     posinfo.toggle()
+
+def upgrade():
+    dll = cdll.LoadLibrary('./_internal/warning.dll').show_warning_dialog
+    dll.argtypes = [c_wchar_p]
+    dll.restype = None
+    dll(f"새로운 업데이트 : {release['tag_name']}\n업데이트를 위해 프로그램이 재시작됩니다.")
+    del dll
+    run_script("update.exe", f"{release['assets'][0]['browser_download_url']} {' '.join(exclude_files)}")
+    os._exit(0)
 
 def run_script(cmd, args):
     class STARTUPINFO(ctypes.Structure):
@@ -106,15 +115,13 @@ for file in 'input.exe', 'ghost.ico', 'warning.dll':
 if __name__ == '__main__':
     if is_process_running(title):
         os._exit(0)
-    download, url = update.check_new_release("onetwohour", "UmaKey", VERSION)
+    download, release = update.check_new_release("onetwohour", "UmaKey", VERSION)
     exclude_files = ('config.json', 'update.exe')
-    if download:
-        run_script("update.exe", f"{url} {' '.join(exclude_files)}")
-        os._exit(0)
     global auto_clicker, icon
     auto_clicker = mapper.AutoClicker()
     img = Image.open('./_internal/ghost.ico')
-    menu = (item(lambda t : text, action, enabled=lambda e : enable), item('Inspector', getInfo), item('Exit', exit))
+    menu = (item(VERSION, lambda x:x, enabled=False), item(lambda t : text, action, enabled=lambda e : enable),
+            item('Inspector', getInfo), item('Update', upgrade, enabled=download), item('Exit', exit))
     icon = pystray.Icon(title, img, title, menu)
     action()
     icon.run()
