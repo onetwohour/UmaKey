@@ -49,8 +49,10 @@ def update():
                 if os.path.isfile(current_file):
                     current_hash = calculate_file_hash(current_file)
                     if current_hash == calculate_file_hash(file_path):
+                        print(f"The file {file_name} is already up to date. Skipping.")
                         continue
                 if not os.path.isdir(current_file.rstrip(file_name)):
+                    print(f"Created the necessary directory: {current_file.rstrip(file_name)}")
                     os.makedirs(current_file.rstrip(file_name), exist_ok=True)
                 shutil.copy2(file_path, current_file)
 
