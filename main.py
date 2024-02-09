@@ -51,12 +51,17 @@ def getInfo():
     
     posinfo.toggle()
 
-def upgrade():
+def alert():
     dll = cdll.LoadLibrary('./_internal/warning.dll').show_warning_dialog
     dll.argtypes = [c_wchar_p]
     dll.restype = None
-    dll(f"새로운 업데이트 : {release['tag_name']}\n업데이트를 위해 프로그램이 재시작됩니다.")
+    dll(message)
     del dll
+
+def upgrade():
+    global message
+    message = "업데이트를 위해 프로그램이 재시작됩니다."
+    alert()
     run_script("update.exe", f"{release['assets'][0]['browser_download_url']} {' '.join(exclude_files)}")
     os._exit(0)
 
@@ -116,6 +121,9 @@ if __name__ == '__main__':
     if is_process_running(title):
         os._exit(0)
     download, release = update.check_new_release("onetwohour", "UmaKey", VERSION)
+    if download:
+        message = f"새로운 업데이트 : {release['tag_name']}"
+        alert()
     exclude_files = ('config.json', 'update.exe')
     global auto_clicker, icon
     auto_clicker = mapper.AutoClicker()
