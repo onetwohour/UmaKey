@@ -11,7 +11,7 @@ from modules import mapper, posinfo, update
 text = 'Run'
 title = 'UmaKey'
 enable = True
-VERSION = "v0.0.53"
+VERSION = "v0.0.54"
 
 def is_process_running(process_name):
     result = subprocess.run(["tasklist", "/FI", f"IMAGENAME eq {process_name}.exe"], capture_output=True, text=True)
@@ -113,7 +113,7 @@ def exit():
     del auto_clicker, icon
     os._exit(0)
 
-for file in 'input.exe', 'ghost.ico', 'warning.dll':
+for file in 'input.exe', 'ghost.ico', 'warning.dll', 'WindowCapture.dll':
     if not os.path.isfile(f'./_internal/{file}'):
         raise FileNotFoundError("File not Found : ", os.path.join(os.getcwd(), f'./_internal/{file}'))
 

@@ -1,6 +1,7 @@
 import win32gui
 import win32con
 import win32api
+import win32ui
 import win32com.client
 import pythoncom
 import numpy as np
@@ -12,8 +13,8 @@ import json
 import re
 import psutil
 import win32process
-from PIL import ImageGrab
 from threading import Thread
+import ctypes
 from ctypes import windll, cdll, c_wchar_p
 user32 = windll.user32
 user32.SetProcessDPIAware()
@@ -139,37 +140,38 @@ def load_json():
         
     ratio = screen_size['x'], screen_size['y']
 
-def find_process_by_name(process_name):
-    for proc in psutil.process_iter(['pid', 'name']):
-        if proc.info['name'] == process_name:
-            return proc.info['pid']
-    return None
-
-def get_windows_by_name(window_name):
-    windows = []
-    def callback(hwnd, _):
-        if window_name == win32gui.GetWindowText(hwnd):
-            windows.append(hwnd)
-        return True
-
-    win32gui.EnumWindows(callback, None)
-    return windows
-
 class WindowHandler:
     def __init__(self):
         self.hwnd = 0
 
     def is_window_foreground(self):
         return self.hwnd == win32gui.GetForegroundWindow()
-    
+
+    def find_process_by_name(self, process_name):
+        for proc in psutil.process_iter(['pid', 'name']):
+            if proc.info['name'] == process_name:
+                return proc.info['pid']
+        return None
+
     def update(self):
-        process = find_process_by_name('umamusume.exe')
-        for hwnd in get_windows_by_name(window_title):
-            _, pid = win32process.GetWindowThreadProcessId(hwnd)
-            if pid == process:
-                self.hwnd = hwnd
-                return
-        self.hwnd = 0
+        self.hwnd = win32gui.FindWindow(None, window_title)
+        if not self.hwnd:
+            return
+        process = self.find_process_by_name('umamusume.exe')
+        if process is None:
+            self.hwnd = 0
+            return
+
+        if win32process.GetWindowThreadProcessId(self.hwnd)[0] == process:
+            return
+
+        def callback(hwnd, _):
+            if win32gui.IsWindowVisible(hwnd) and window_title == win32gui.GetWindowText(hwnd):
+                _, pid = win32process.GetWindowThreadProcessId(hwnd)
+                if pid == process:
+                    self.hwnd = hwnd
+                    return
+        win32gui.EnumWindows(callback, None)
 
     # 화면 활성화 시 오류 발생 방지
     def activate_widnow(self):
@@ -179,6 +181,7 @@ class WindowHandler:
                 win32gui.ShowWindow(self.hwnd, win32con.SW_RESTORE)
             else:
                 pythoncom.CoInitialize()
+                win32gui.SetForegroundWindow(self.hwnd)
                 shell = win32com.client.Dispatch("WScript.Shell")
                 shell.SendKeys('%')
                 win32gui.SetForegroundWindow(self.hwnd)
@@ -187,40 +190,56 @@ class WindowHandler:
             return False
 
 class ColorFinder:
-    def __init__(self, hwnd, timer):
+    def __init__(self, hwnd = 0, timer = 0):
         self.hwnd = hwnd
-        self.max_height = 0
-        self.max_width = 0
         self.timer = timer
         self.frequency = 0.25
+        self.dll = ctypes.CDLL("./_internal/WindowCapture.dll")
+
+        self.dll.CaptureAndCropScreen.argtypes = ctypes.POINTER(ctypes.POINTER(ctypes.c_ubyte)), ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int
+        self.dll.CaptureAndCropScreen.restype = None
+
+        self.dll.FreeImageData.argtypes = (ctypes.POINTER(ctypes.c_ubyte),)
+        self.dll.FreeImageData.restype = None
+    
+    def capture_window(self, x, y, width, height):
+        image_data =  ctypes.POINTER(ctypes.c_ubyte)()
+        self.dll.CaptureAndCropScreen(ctypes.byref(image_data), x, y, width, height)
+        image_array = np.fromstring(ctypes.string_at(image_data, width * height * 3), dtype=np.uint8)
+        self.dll.FreeImageData(image_data)
+        del image_data
+        image_array = image_array.reshape((height, width, 3))
+        return image_array
 
     def find_color(self, target_color, tolerance):
         if time.time() - self.timer < self.frequency:
             return None, None
-
+        target_color = target_color[::-1]
         left, top, right, bottom = win32gui.GetWindowRect(self.hwnd)
-        self.max_height = int((bottom - top) // (5 / 1))
-        self.max_width = (right - left) // 2
-
-        image = ImageGrab.grab(bbox=(left + 20, top + self.max_height, right - 20, bottom - 20))
-        img = np.array(image)
-        image.close()
-
+        max_height = int((bottom - top) // (5 / 1))
+        
+        width = right - left - 40
+        height = bottom - top - max_height - 20
+        img = self.capture_window(left + 20, top + max_height, width, height)
+        
         lower_bound = np.maximum(np.array(target_color) - tolerance, 0)
         upper_bound = np.minimum(np.array(target_color) + tolerance, 255)
         mask = cv2.inRange(img, lower_bound, upper_bound)
+        del img, lower_bound, upper_bound
 
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        
-        contours = tuple(contour for contour in contours if cv2.boundingRect(contour)[2] <= self.max_width and cv2.boundingRect(contour)[3] <= self.max_height)
+        del mask
         if not contours:
             return False, False
 
         max_contour = max(contours, key=cv2.contourArea)
+        del contours
+
         M = cv2.moments(max_contour)
+        del max_contour
         if M['m00'] != 0:
-            cx = int(M['m10'] / M['m00']) + left
-            cy = int(M['m01'] / M['m00']) + top + self.max_height
+            cx = int(M['m10'] / M['m00']) + left + 20
+            cy = int(M['m01'] / M['m00']) + top + max_height
 
             return cx, cy
         else:
@@ -249,6 +268,9 @@ class AutoClicker:
 
         if self.window_handler is None:
             self.window_handler = WindowHandler()
+
+        if self.color_finder is None:
+            self.color_finder = ColorFinder()
 
         # C++ 프로그램 실행
         if self.cpp_process is None:
@@ -408,7 +430,8 @@ class AutoClicker:
     # 적절한 기능 수행
     def macro(self, key):
         if type(key) == list: # 색깔 기반
-            self.color_finder = ColorFinder(self.window_handler.hwnd, self.timer)
+            self.color_finder.hwnd = self.window_handler.hwnd
+            self.color_finder.timer = self.timer
             cx, cy = self.color_finder.find_color(key, self.tolerance)
             if cx is not None and cy is not None:
                 if cx or cy:
@@ -465,8 +488,8 @@ class AutoClicker:
                 print(e)
         else:
             self.destroy()
-            del self.window_handler
-            self.window_handler = None
+            del self.window_handler, self.color_finder
+            self.window_handler = self.color_finder = None
 
 if __name__ == '__main__':
     auto_clicker = AutoClicker()
