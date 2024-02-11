@@ -10,7 +10,7 @@ void CaptureAndCropScreen(unsigned char** imageData, int x, int y, int cropWidth
 
     BitBlt(hdcMem, 0, 0, cropWidth, cropHeight, hdcScreen, x, y, SRCCOPY);
 
-    int size = cropWidth * cropHeight * 3;
+    unsigned long long size = cropWidth * cropHeight * 3;
     *imageData = (unsigned char*)malloc(size);
 
     BITMAPINFO bmi;
