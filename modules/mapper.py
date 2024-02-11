@@ -1,11 +1,9 @@
 import win32gui
 import win32con
 import win32api
-import win32ui
 import win32com.client
 import pythoncom
 import numpy as np
-import cv2
 import subprocess
 import time
 import os
@@ -18,6 +16,7 @@ import ctypes
 from ctypes import windll, cdll, c_wchar_p
 user32 = windll.user32
 user32.SetProcessDPIAware()
+os.path
 
 is_run = False
 
@@ -194,57 +193,51 @@ class ColorFinder:
         self.hwnd = hwnd
         self.timer = timer
         self.frequency = 0.25
-        self.dll = ctypes.CDLL("./_internal/WindowCapture.dll")
+        self.capture = ctypes.CDLL("./_internal/WindowCapture.dll")
+        self.getpos = ctypes.CDLL("./_internal/findColor.dll")
 
-        self.dll.CaptureAndCropScreen.argtypes = ctypes.POINTER(ctypes.POINTER(ctypes.c_ubyte)), ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int
-        self.dll.CaptureAndCropScreen.restype = None
+        self.capture.CaptureAndCropScreen.argtypes = (ctypes.POINTER(ctypes.POINTER(ctypes.c_ubyte)), ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int)
+        self.capture.CaptureAndCropScreen.restype = None
 
-        self.dll.FreeImageData.argtypes = (ctypes.POINTER(ctypes.c_ubyte),)
-        self.dll.FreeImageData.restype = None
-    
-    def capture_window(self, x, y, width, height):
-        image_data =  ctypes.POINTER(ctypes.c_ubyte)()
-        self.dll.CaptureAndCropScreen(ctypes.byref(image_data), x, y, width, height)
-        image_array = np.fromstring(ctypes.string_at(image_data, width * height * 3), dtype=np.uint8)
-        self.dll.FreeImageData(image_data)
-        del image_data
-        image_array = image_array.reshape((height, width, 3))
-        return image_array
+        self.capture.FreeImageData.argtypes = (ctypes.POINTER(ctypes.c_ubyte),)
+        self.capture.FreeImageData.restype = None
+
+        self.getpos.findTarget.argtypes = (ctypes.POINTER(ctypes.c_ubyte), ctypes.c_int, ctypes.c_int, ctypes.POINTER(ctypes.c_int), ctypes.c_int, 
+                                           ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_bool))
+        self.getpos.findTarget.restype = None
+
 
     def find_color(self, target_color, tolerance):
         if time.time() - self.timer < self.frequency:
             return None, None
-        target_color = target_color[::-1]
+        target_color = np.array(target_color[::-1])
         left, top, right, bottom = win32gui.GetWindowRect(self.hwnd)
-        max_height = int((bottom - top) // (5 / 1))
-        
+        max_height = (bottom - top) // 5
         width = right - left - 40
         height = bottom - top - max_height - 20
-        img = self.capture_window(left + 20, top + max_height, width, height)
-        
-        lower_bound = np.maximum(np.array(target_color) - tolerance, 0)
-        upper_bound = np.minimum(np.array(target_color) + tolerance, 255)
-        mask = cv2.inRange(img, lower_bound, upper_bound)
-        del img, lower_bound, upper_bound
+        margin_width, margin_height = width % 4, height % 4
+        width -= margin_width
+        height -= margin_height
+        left += margin_width // 2
+        top += margin_height // 2
 
-        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        del mask
-        if not contours:
-            return False, False
+        image_data = ctypes.POINTER(ctypes.c_ubyte)()
+        self.capture.CaptureAndCropScreen(ctypes.byref(image_data), left + 20, top + max_height, width, height)
 
-        max_contour = max(contours, key=cv2.contourArea)
-        del contours
+        success = ctypes.c_bool(False)
+        cx = ctypes.c_int()
+        cy = ctypes.c_int()
 
-        M = cv2.moments(max_contour)
-        del max_contour
-        if M['m00'] != 0:
-            cx = int(M['m10'] / M['m00']) + left + 20
-            cy = int(M['m01'] / M['m00']) + top + max_height
+        self.getpos.findTarget(image_data, width, height, target_color.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
+                                tolerance, ctypes.byref(cx), ctypes.byref(cy), ctypes.byref(success))
 
-            return cx, cy
+        self.capture.FreeImageData(image_data)
+
+        if success.value:
+            return cx.value + left + 20, cy.value + top + max_height
         else:
             return False, False
-
+        
 class AutoClicker:
     def __init__(self, tolerance=10):
         self.window_handler = None

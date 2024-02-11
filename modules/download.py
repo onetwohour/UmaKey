@@ -38,6 +38,20 @@ def update():
     current_folder = os.getcwd()
     print('Initiating the application of updates...')
     try:
+        for root, dirs, files in os.walk(current_folder):
+            for file_name in files:
+                file_path = os.path.join(root, file_name)
+                relative_file_path = file_path.replace(current_folder + os.sep, "")
+                temp_file_path = os.path.join(temp_dir, relative_file_path)
+                if not os.path.exists(temp_file_path):
+                    os.remove(file_path)
+            for dir_name in dirs:
+                dir_path = os.path.join(root, dir_name)
+                relative_dir_path = dir_path.replace(current_folder + os.sep, "")
+                temp_dir_path = os.path.join(temp_dir, relative_dir_path)
+                if not os.path.exists(temp_dir_path):
+                    os.rmdir(dir_path)
+
         for root, _, files in os.walk(temp_dir):
             for file_name in files:
                 file_path = os.path.join(root, file_name)

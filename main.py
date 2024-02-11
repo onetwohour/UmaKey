@@ -113,7 +113,7 @@ def exit():
     del auto_clicker, icon
     os._exit(0)
 
-for file in 'input.exe', 'ghost.ico', 'warning.dll', 'WindowCapture.dll':
+for file in 'input.exe', 'ghost.ico', 'warning.dll', 'WindowCapture.dll', 'findColor.dll', 'opencv_world490.dll':
     if not os.path.isfile(f'./_internal/{file}'):
         raise FileNotFoundError("File not Found : ", os.path.join(os.getcwd(), f'./_internal/{file}'))
 
@@ -123,7 +123,7 @@ if __name__ == '__main__':
     download, release = update.check_new_release("onetwohour", "UmaKey", VERSION)
     if download:
         message = f"새로운 업데이트 : {release['tag_name']}"
-        Thread(target=alert).start()
+        alert()
     exclude_files = ('config.json', 'update.exe')
     global auto_clicker, icon
     auto_clicker = mapper.AutoClicker()

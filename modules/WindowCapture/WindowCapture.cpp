@@ -1,7 +1,8 @@
-#include <windows.h>
-#include <iostream>
+#include "WindowCapture.hpp"
 
-extern "C" __declspec(dllexport) void CaptureAndCropScreen(unsigned char** imageData, int x, int y, int cropWidth, int cropHeight) {
+void CaptureAndCropScreen(unsigned char** imageData, int x, int y, int cropWidth, int cropHeight) {
+    SetProcessDPIAware();
+
     HDC hdcScreen = GetDC(NULL);
     HDC hdcMem = CreateCompatibleDC(hdcScreen);
     HBITMAP hBitmap = CreateCompatibleBitmap(hdcScreen, cropWidth, cropHeight);
@@ -29,6 +30,6 @@ extern "C" __declspec(dllexport) void CaptureAndCropScreen(unsigned char** image
     ReleaseDC(NULL, hdcScreen);
 }
 
-extern "C" __declspec(dllexport) void FreeImageData(unsigned char* imageData) {
+void FreeImageData(unsigned char* imageData) {
     free(imageData);
 }
