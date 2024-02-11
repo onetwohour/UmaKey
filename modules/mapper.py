@@ -215,15 +215,14 @@ class ColorFinder:
         max_height = (bottom - top) // 5
         width = right - left - 40
         height = bottom - top - max_height - 20
-        margin_width, margin_height = width % 4, height % 4
+        margin_width = width % 4
         width -= margin_width
-        height -= margin_height
         left += margin_width // 2
-        top += margin_height // 2
 
         image_data = ctypes.POINTER(ctypes.c_ubyte)()
         self.capture.CaptureAndCropScreen(ctypes.byref(image_data), left + 20, top + max_height, width, height)
-
+        from PIL import Image
+        Image.fromarray(np.ctypeslib.as_array(image_data, shape=(height, width, 3))).save('./image.jpg')
         success = ctypes.c_bool(False)
         cx = ctypes.c_int()
         cy = ctypes.c_int()
