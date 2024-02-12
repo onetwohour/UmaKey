@@ -479,7 +479,10 @@ class AutoClicker:
                 print(e)
         else:
             self.destroy()
-            del self.window_handler, self.color_finder
+            try:
+                del self.window_handler, self.color_finder
+            except:
+                pass
             self.window_handler = self.color_finder = None
 
 if __name__ == '__main__':
