@@ -49,7 +49,7 @@ def getInfo():
     else:
         icon.update_menu()
     
-    posinfo.toggle()
+    infowindow.toggle()
 
 def alert():
     dll = cdll.LoadLibrary('./_internal/warning.dll').show_warning_dialog
@@ -108,7 +108,7 @@ def exit():
     global auto_clicker, icon
     auto_clicker.__del__()
     if not enable:
-        posinfo.toggle()
+        infowindow.toggle()
     icon.stop()
     del auto_clicker, icon
     os._exit(0)
@@ -126,8 +126,9 @@ if __name__ == '__main__':
         alert()
     update_path = os.path.join(os.getcwd(), "_internal", "update")
     exclude_files = ('config.json',)
-    global auto_clicker, icon
+    global auto_clicker, icon, infowindow
     auto_clicker = mapper.AutoClicker()
+    infowindow = posinfo.Window()
     img = Image.open('./_internal/UmaKey.ico')
     menu = (item(VERSION, lambda x:x, enabled=False), item(lambda t : text, action, enabled=lambda e : enable),
             item('Inspector', getInfo), item('Update', upgrade, enabled=download), item('Exit', exit))
