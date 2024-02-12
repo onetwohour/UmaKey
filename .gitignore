@@ -4,3 +4,5 @@ dist/
 pyinstaller/
 __pycache__
 opencv_world490.dll
+*.dist/
+*.bat

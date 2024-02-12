@@ -10,7 +10,8 @@ from ctypes import cdll, c_wchar_p, windll
 args = sys.argv
 try:
     zip_url = args[1]
-    exclude_files = tuple(*args[2:])
+    update_folder = args[2]
+    exclude_files = tuple(file for file in args[3:])
 except:
     pass
 
@@ -39,24 +40,23 @@ def update():
     print('Initiating the application of updates...')
     try:
         for root, dirs, files in os.walk(current_folder):
-            for file_name in files:
-                file_path = os.path.join(root, file_name)
-                relative_file_path = file_path.replace(current_folder + os.sep, "")
-                temp_file_path = os.path.join(temp_dir, relative_file_path)
-                if not os.path.exists(temp_file_path):
-                    os.remove(file_path)
+            if root == update_folder:
+                continue
             for dir_name in dirs:
                 dir_path = os.path.join(root, dir_name)
                 relative_dir_path = dir_path.replace(current_folder + os.sep, "")
                 temp_dir_path = os.path.join(temp_dir, relative_dir_path)
                 if not os.path.exists(temp_dir_path):
-                    os.rmdir(dir_path)
+                    try:
+                        shutil.rmtree(dir_path)
+                    except:
+                        pass
 
-        for root, _, files in os.walk(temp_dir):
+        for root, dirs, files in os.walk(temp_dir):
             for file_name in files:
                 file_path = os.path.join(root, file_name)
                 current_file = os.path.join(current_folder, file_path.replace(temp_dir + os.sep, ""))
-                if file_name in exclude_files and os.path.isfile(current_file):
+                if file_name in exclude_files and (os.path.isfile(current_file) or current_file.startswith(update_folder)):
                     print(f"Skipping the update of {file_name} as per the user's request.")
                     continue
                 print(f"Updating the file: {file_name}")

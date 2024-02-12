@@ -62,7 +62,7 @@ def upgrade():
     global message
     message = "업데이트를 위해 프로그램이 재시작됩니다."
     alert()
-    run_script("update.exe", f"{release['assets'][0]['browser_download_url']} {' '.join(exclude_files)}")
+    run_script(os.path.join(os.getcwd(), "_internal", "update", "update.exe"), f"{release['assets'][0]['browser_download_url']} {update_path} {' '.join(exclude_files)}")
     os._exit(0)
 
 def run_script(cmd, args):
@@ -113,7 +113,7 @@ def exit():
     del auto_clicker, icon
     os._exit(0)
 
-for file in 'input.exe', 'ghost.ico', 'warning.dll', 'WindowCapture.dll', 'findColor.dll', 'opencv_world490.dll':
+for file in 'input.exe', 'UmaKey.ico', 'warning.dll', 'WindowCapture.dll', 'findColor.dll', 'opencv_world490.dll':
     if not os.path.isfile(f'./_internal/{file}'):
         raise FileNotFoundError("File not Found : ", os.path.join(os.getcwd(), f'./_internal/{file}'))
 
@@ -124,10 +124,11 @@ if __name__ == '__main__':
     if download:
         message = f"새로운 업데이트 : {release['tag_name']}"
         alert()
-    exclude_files = ('config.json', 'update.exe')
+    update_path = os.path.join(os.getcwd(), "_internal", "update")
+    exclude_files = ('config.json',)
     global auto_clicker, icon
     auto_clicker = mapper.AutoClicker()
-    img = Image.open('./_internal/ghost.ico')
+    img = Image.open('./_internal/UmaKey.ico')
     menu = (item(VERSION, lambda x:x, enabled=False), item(lambda t : text, action, enabled=lambda e : enable),
             item('Inspector', getInfo), item('Update', upgrade, enabled=download), item('Exit', exit))
     icon = pystray.Icon(title, img, title, menu)
