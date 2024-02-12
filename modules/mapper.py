@@ -91,7 +91,7 @@ def load_json():
         'A':    [225, 255, 178],    # 1번 선택지
         'S':    [255, 247, 192],    # 2번 선택지
         'D':    [255, 228, 239],    # 3번 선택지
-        '/':    (730, 1320),
+        '/':    (730, 1350),
         "TAB": "drag (20, 1230) (788, 1230)" # 훈련 돌아보기 2
     }
 
@@ -221,8 +221,7 @@ class ColorFinder:
 
         image_data = ctypes.POINTER(ctypes.c_ubyte)()
         self.capture.CaptureAndCropScreen(ctypes.byref(image_data), left + 20, top + max_height, width, height)
-        from PIL import Image
-        Image.fromarray(np.ctypeslib.as_array(image_data, shape=(height, width, 3))).save('./image.jpg')
+
         success = ctypes.c_bool(False)
         cx = ctypes.c_int()
         cy = ctypes.c_int()
