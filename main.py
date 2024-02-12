@@ -11,7 +11,7 @@ from modules import mapper, posinfo, update
 text = 'Run'
 title = 'UmaKey'
 enable = True
-VERSION = "v0.0.54"
+VERSION = "v1.0.0"
 
 def is_process_running(process_name):
     result = subprocess.run(["tasklist", "/FI", f"IMAGENAME eq {process_name}.exe"], capture_output=True, text=True)
