@@ -23,7 +23,8 @@ def action():
     text = 'Run' if text == 'Stop' else 'Stop'
     Thread(target=auto_clicker.toggle, daemon=True).start()
     icon.update_menu()
-    Thread(target=error_check, daemon=True).start()
+    if text == "Stop":
+        Thread(target=error_check, daemon=True).start()
 
 def error_check():
     error = 0
