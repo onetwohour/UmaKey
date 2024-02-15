@@ -15,18 +15,40 @@ try:
 except:
     pass
 
-def download_file(url, dest_filename):
+def download_file(url : str, dest_filename : str) -> None:
+    """
+    Downloads a file from the specified URL and saves it to the destination file.
+
+    :param url: The URL of the file to download
+    :type url: str
+    :param dest_filename: The path to save the downloaded file
+    :type dest_filename: str
+    :return: None
+    """
     with urllib.request.urlopen(url) as response, open(dest_filename, 'wb') as out_file:
         shutil.copyfileobj(response, out_file)
 
-def calculate_file_hash(file_path):
+def calculate_file_hash(file_path : str) -> str:
+    """
+    Calculates the SHA-256 hash of a file.
+
+    :param file_path: The path to the file
+    :type file_path: str
+    :return: The SHA-256 hash of the file
+    :rtype: str
+    """
     hasher = hashlib.sha256()
     with open(file_path, 'rb') as f:
         for chunk in iter(lambda: f.read(65536), b''):
             hasher.update(chunk)
     return hasher.hexdigest()
 
-def update():
+def update() -> None:
+    """
+    Performs the update process for the application.
+
+    :return: None
+    """
     global exclude_files
     if exclude_files is None:
         exclude_files = ()
@@ -56,7 +78,7 @@ def update():
             for file_name in files:
                 file_path = os.path.join(root, file_name)
                 current_file = os.path.join(current_folder, file_path.replace(temp_dir + os.sep, ""))
-                if file_name in exclude_files and (os.path.isfile(current_file) or current_file.startswith(update_folder)):
+                if (file_name in exclude_files and os.path.isfile(current_file)) or current_file.startswith(update_folder):
                     print(f"Skipping the update of {file_name} as per the user's request.")
                     continue
                 print(f"Updating the file: {file_name}")

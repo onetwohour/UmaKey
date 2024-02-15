@@ -9,20 +9,28 @@ user32.SetProcessDPIAware()
 window_title = 'umamusume'
 
 class WindowHandler:
-    def __init__(self):
+    def __init__(self) -> None:
         self.hwnd = 0
         self.update()
     
-    def update(self):
+    def update(self) -> None:
+        """
+        Updates the hwnd attribute by finding the window handle.
+        """
         self.hwnd = win32gui.FindWindow(None, window_title)
 
 class Window():
-    def __init__(self):
+    def __init__(self) -> None:
         self.root = None
         self.window_handler = None
         self.run = False
 
-    def setup(self):
+    def setup(self) -> None:
+        """
+        Sets up the GUI window and initializes its components.
+
+        :return: None
+        """
         self.root = tk.Tk()
         self.root.overrideredirect(True)
         self.window_handler = WindowHandler()
@@ -34,14 +42,24 @@ class Window():
         self.text = tk.Label(self.root, text="", font=("Arial", 10), bg="white", fg="black")
         self.text.pack(fill=tk.BOTH, expand=True)
 
-    def update_position(self):
+    def update_position(self) -> None:
+        """
+        Updates the position of the GUI window to follow the mouse cursor.
+
+        :return: None
+        """
         self.x = self.root.winfo_pointerx()
         self.y = self.root.winfo_pointery()
 
         self.root.geometry(f"+{self.x+2}+{self.y+2}")
         self.root.after(8, self.update_position)
 
-    def update(self):
+    def update(self) -> None:
+        """
+        Updates information based on the current state of the game window.
+
+        :return: None
+        """
         left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
         game_window = right-left, bottom-top
         px, py = self.x - left, self.y - top
@@ -52,7 +70,12 @@ class Window():
         color = screenshot.getpixel((1, 1))
         self.text.config(text=f"{game_window[0]}x{game_window[1]}\n({px}, {py})\n{[*color]}")
 
-    def update_text(self):
+    def update_text(self) -> None:
+        """
+        Updates the text content in the GUI periodically.
+
+        :return: None
+        """
         if not win32gui.IsWindow(self.window_handler.hwnd):
             self.window_handler.update()
             self.text.config(text="Game Closed.")
@@ -61,14 +84,24 @@ class Window():
 
         self.text.after(500, self.update_text)
 
-    def main(self):
+    def main(self) -> None:
+        """
+        Starts the main event loop of the GUI application.
+        
+        :return: None
+        """
         self.setup()
         self.update_position()
         self.update_text()
 
         self.root.mainloop()
     
-    def exit(self):
+    def exit(self) -> None:
+        """
+        Destroys the root window and cleans up resources associated with it.
+        
+        :return: None
+        """
         try:
             self.root.destroy()
             del self.window_handler
@@ -77,7 +110,13 @@ class Window():
             pass
         self.window_handler = self.root = None
 
-    def toggle(self):
+    def toggle(self) -> None:
+        """
+        Toggles the state of a class attribute 'run' between True and False,
+        and calls either the 'main' method or the 'exit' method accordingly.
+        
+        :return: None
+        """
         self.run = not self.run
 
         if self.run:

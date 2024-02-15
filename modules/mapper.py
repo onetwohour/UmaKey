@@ -61,7 +61,14 @@ byte_to_key = {
 
 key_to_byte = {v: k for k, v in byte_to_key.items()}
 
-def convert_value(value_str):
+def convert_value(value_str : str):
+    """
+    Converts a string representation of a value to its corresponding Python data type.
+
+    :param value_str: The string representation of the value
+    :type value_str: str
+    :return: The converted value
+    """
     split = value_str[1:-1].split(',')
     # 리스트 형태인 경우
     if value_str.startswith("[") and value_str.endswith("]") and len(split) == 3:
@@ -75,7 +82,12 @@ def convert_value(value_str):
     else:
         return value_str
 
-def load_json():
+def load_json() -> None:
+    """
+    Loads settings from the config file and initializes global variables.
+
+    :return: None
+    """
     global key_mapping, ratio, load, window_title
     key_mapping = {
         'SPACEBAR': [99,182,0],        # 초록버튼
@@ -140,19 +152,35 @@ def load_json():
     ratio = screen_size['x'], screen_size['y']
 
 class WindowHandler:
-    def __init__(self):
+    def __init__(self) -> None:
         self.hwnd = 0
 
-    def is_window_foreground(self):
+    def is_window_foreground(self) -> bool:
+        """
+        Check if the window is in the foreground.
+
+        :return: True if the window is in the foreground, False otherwise
+        """
         return self.hwnd == win32gui.GetForegroundWindow()
 
-    def find_process_by_name(self, process_name):
+    def find_process_by_name(self, process_name : str) -> None|int:
+        """
+        Find a process by its name.
+
+        :param process_name: The name of the process to find
+        :return: The PID of the process if found, None otherwise
+        """
         for proc in psutil.process_iter(['pid', 'name']):
             if proc.info['name'] == process_name:
                 return proc.info['pid']
         return None
 
-    def update(self):
+    def update(self) -> None:
+        """
+        Update the window handler.
+
+        :return: None
+        """
         self.hwnd = win32gui.FindWindow(None, window_title)
         if not self.hwnd:
             return
@@ -164,7 +192,7 @@ class WindowHandler:
         if win32process.GetWindowThreadProcessId(self.hwnd)[0] == process:
             return
 
-        def callback(hwnd, _):
+        def callback(hwnd : int, _) -> None:
             if win32gui.IsWindowVisible(hwnd) and window_title == win32gui.GetWindowText(hwnd):
                 _, pid = win32process.GetWindowThreadProcessId(hwnd)
                 if pid == process:
@@ -173,7 +201,12 @@ class WindowHandler:
         win32gui.EnumWindows(callback, None)
 
     # 화면 활성화 시 오류 발생 방지
-    def activate_widnow(self):
+    def activate_widnow(self) -> bool:
+        """
+        Activate the window.
+
+        :return: True if the window is successfully activated, False otherwise
+        """
         try:
             time.sleep(0.25)
             if win32gui.IsIconic(self.hwnd):
@@ -189,7 +222,7 @@ class WindowHandler:
             return False
 
 class ColorFinder:
-    def __init__(self, hwnd = 0, timer = 0):
+    def __init__(self, hwnd = 0, timer = 0) -> None:
         self.hwnd = hwnd
         self.timer = timer
         self.frequency = 0.25
@@ -207,7 +240,18 @@ class ColorFinder:
         self.getpos.findTarget.restype = None
 
 
-    def find_color(self, target_color, tolerance):
+    def find_color(self, target_color : list[int, int, int], tolerance : float) -> tuple[None, None]|tuple[int, int]|tuple[bool, bool]:
+        """
+        Find a color on the screen.
+
+        :param target_color: The target color to find
+        :type target_color: list[int, int, int]
+        :param tolerance: The tolerance level for color comparison
+        :type tolerance: float
+        :return: The coordinates of the found color if successful, or False otherwise
+        :rtype: tuple[None, None] | tuple[int, int] | tuple[bool, bool]
+        """
+
         if time.time() - self.timer < self.frequency:
             return None, None
         target_color = np.array(target_color[::-1])
@@ -237,7 +281,7 @@ class ColorFinder:
             return False, False
         
 class AutoClicker:
-    def __init__(self, tolerance=10):
+    def __init__(self, tolerance : float = 10) -> None:
         self.window_handler = None
         self.color_finder = None
         self.tolerance = tolerance
@@ -247,11 +291,17 @@ class AutoClicker:
         self.error = ""
 
     # 키보드 입력 감지 프로그램
-    def open_exe(self):
+    def open_exe(self) -> None:
+        """
+        Opens an external program to detect keyboard inputs.
+        """
         self.cpp_process = subprocess.Popen("./_internal/input.exe", stdout=subprocess.PIPE, bufsize=1, universal_newlines=True, shell=False)
         Thread(target=self.check_screen, daemon=True).start()
 
-    def run(self):
+    def run(self) -> None:
+        """
+        Runs the AutoClicker and detects keyboard events.
+        """
         if not is_run or self.runner > 0:
             return
         self.timer = time.time()
@@ -303,7 +353,10 @@ class AutoClicker:
         self.runner -= 1
 
     # 처음 실행 시, 게임 창 비율을 확인
-    def screen_size_detect(self):
+    def screen_size_detect(self) -> None:
+        """
+        Detects the size of the game window and verifies the aspect ratio.
+        """
         delay = time.time()
         timeout = 15
         # 처음 실행 시 화면 크기가 요동치므로 무시
@@ -319,7 +372,13 @@ class AutoClicker:
                 break
             time.sleep(0.1)
 
-    def show_warning_dialog(self, message):
+    def show_warning_dialog(self, message : str) -> None:
+        """
+        Shows a warning dialog box with the specified message.
+
+        :param message: The message to display in the warning dialog
+        :type message: str
+        """
         if not os.path.isfile('./_internal/warning.dll'):
             raise FileNotFoundError(f"File not exist : {os.path.join(os.getcwd(), '_internal', 'warning.dll')}")
         dll = cdll.LoadLibrary(os.path.join(os.getcwd(), '_internal', 'warning.dll')).show_warning_dialog
@@ -328,7 +387,10 @@ class AutoClicker:
         dll(message)
     
     # 게임 창이 꺼져있다면, 키보드 입력 감지 종료
-    def check_screen(self):
+    def check_screen(self) -> None:
+        """
+        Checks if the game window is still active and terminates keyboard event detection if not.
+        """
         while is_run and self.cpp_process is not None and self.error == "":
             if not self.window_handler.is_window_foreground():
                 self.destroy()
@@ -337,7 +399,15 @@ class AutoClicker:
     
     # 매크로 해석
     # 매크로 문자열을 분해하여 적절한 명령으로 변환
-    def decode(self, text):
+    def decode(self, text : str) -> list:
+        """
+        Decodes a macro string into a list of appropriate commands.
+
+        :param text: The macro string to decode
+        :type text: str
+        :return: The list of decoded commands
+        :rtype: list
+        """
         keys = []
         tokens = re.findall(r'\[.*?\]|\(.*?\)|\d+|\b\w+\s[\d.]+\b|\w+', load[text])
         for token in tokens:
@@ -359,7 +429,15 @@ class AutoClicker:
         return keys
 
     # 키보드 입력시 
-    def on_keyboard_event(self, byte_data):
+    def on_keyboard_event(self, byte_data : str) -> bool:
+        """
+        Handles keyboard events received from the external program.
+
+        :param byte_data: The keyboard event data received
+        :type byte_data: str
+        :return: True if the event was handled successfully, False otherwise
+        :rtype: bool
+        """
         key = key_mapping.get(byte_to_key.get(byte_data))
         if key is None or not self.window_handler.is_window_foreground():
             self.keyboard(byte_data)
@@ -373,7 +451,13 @@ class AutoClicker:
             self.macro(key)
         return True 
             
-    def keyboard(self, code):
+    def keyboard(self, code : int) -> None:
+        """
+        Simulates a keyboard input based on the provided code.
+
+        :param code: The code of the keyboard input to simulate
+        :type code: int
+        """
         control_pressed = win32api.GetKeyState(win32con.VK_CONTROL) < 0
         shift_pressed = win32api.GetKeyState(win32con.VK_SHIFT) < 0
         if control_pressed:
@@ -386,12 +470,26 @@ class AutoClicker:
         if shift_pressed:
             win32api.keybd_event(win32con.VK_SHIFT, 0, win32con.KEYEVENTF_EXTENDEDKEY | win32con.KEYEVENTF_KEYUP, 3000)
 
-    def click(self, x, y):
+    def click(self, x : int, y : int) -> None:
+        """
+        Simulates a mouse click at the specified coordinates.
+
+        :param x: The x-coordinate of the click
+        :type x: int
+        :param y: The y-coordinate of the click
+        :type y: int
+        """
         win32api.SetCursorPos((x, y))
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
 
-    def drag(self, pos):
+    def drag(self, pos : str) -> None:
+        """
+        Simulates dragging the mouse from one position to another.
+
+        :param pos: The positions to drag the mouse between
+        :type pos: str
+        """
         (x1, y1), (x2, y2) = (tuple(map(int, match)) for match in re.findall(r'\((\w+), (\w+)\)', pos))
         left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
         distance = min(max(abs(x1 - x2) / 20, abs(y1 - y2) / 20, 1), 40)
@@ -419,7 +517,13 @@ class AutoClicker:
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
 
     # 적절한 기능 수행
-    def macro(self, key):
+    def macro(self, key) -> None:
+        """
+        Executes a macro command.
+
+        :param key: The macro command to execute
+        :type key: str
+        """
         if type(key) == list: # 색깔 기반
             self.color_finder.hwnd = self.window_handler.hwnd
             self.color_finder.timer = self.timer
@@ -452,12 +556,18 @@ class AutoClicker:
             for text in self.decode(key):
                 self.macro(text)
 
-    def __del__(self):
+    def __del__(self) -> None:
+        """
+        Cleans up resources and terminates the AutoClicker.
+        """
         global is_run
         is_run = False
         self.destroy()
 
-    def destroy(self):
+    def destroy(self) -> None:
+        """
+        Terminates the AutoClicker and releases associated resources.
+        """
         try:
             if self.cpp_process != None:
                 self.cpp_process.terminate()
@@ -465,7 +575,10 @@ class AutoClicker:
             pass
         self.cpp_process = None
 
-    def toggle(self):
+    def toggle(self) -> None:
+        """
+        Toggles the AutoClicker on or off.
+        """
         global is_run
         is_run = not is_run
         if is_run:
