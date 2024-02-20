@@ -512,7 +512,7 @@ class AutoClicker:
             x1 += dx
             y1 += dy
             win32api.SetCursorPos((int(x1), int(y1)))
-            time.sleep(0.0001)
+            time.sleep(0.015)
         win32api.SetCursorPos((x2, y2))
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
 
