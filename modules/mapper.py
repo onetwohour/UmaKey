@@ -16,7 +16,6 @@ import ctypes
 from ctypes import windll, cdll, c_wchar_p
 user32 = windll.user32
 user32.SetProcessDPIAware()
-os.path
 
 is_run = False
 

@@ -11,7 +11,7 @@ from modules import mapper, posinfo, update
 text = 'Run'
 title = 'UmaKey'
 enable = True
-VERSION = "v1.0.0"
+VERSION = "v1.1.0"
 
 def is_process_running(process_name : str) -> bool:
     """
