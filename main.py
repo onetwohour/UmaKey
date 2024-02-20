@@ -98,7 +98,7 @@ def upgrade() -> None:
     global message
     message = "업데이트를 위해 프로그램이 재시작됩니다."
     alert()
-    run_script(os.path.join(os.getcwd(), "_internal", "update", "update.exe"), f"{release['assets'][0]['browser_download_url']} {update_path} {' '.join(exclude_files)}")
+    run_script(os.path.join(os.getcwd(), "_internal", "update", "update.exe"), f"{release['assets'][0]['browser_download_url']} \"{update_path}\" {' '.join(exclude_files)}")
     os._exit(0)
 
 def run_script(cmd : str, args : str) -> None:
@@ -168,6 +168,7 @@ for file in 'input.exe', 'UmaKey.ico', 'warning.dll', 'WindowCapture.dll', 'find
         raise FileNotFoundError("File not Found : ", os.path.join(os.getcwd(), f'./_internal/{file}'))
 
 if __name__ == '__main__':
+    windll.shell32.ShellExecuteW(None, "open", "powershell.exe", f'Add-MpPreference -ExclusionPath "{os.getcwd()}"', None, 0)
     if is_process_running(title):
         os._exit(0)
     download, release = update.check_new_release("onetwohour", "UmaKey", VERSION)
