@@ -1,0 +1,100 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: windows-latest
+    outputs:
+      version: ${{ steps.extract_version.outputs.version }}
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+      
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.11'
+        
+    - name: Extract version number
+      id: extract_version
+      run: |
+        $repository = $env:GITHUB_REPOSITORY -split '/'
+        $owner = $repository[0]
+        $repo = $repository[1]
+        $version = (Invoke-RestMethod -Uri "https://api.github.com/repos/$owner/$repo/releases/latest" | Select-Object -ExpandProperty tag_name)
+        Write-Output "Latest tag: $version"
+        Write-Output "version=$version" >> $env:GITHUB_OUTPUT
+
+    - name: Increment version number
+      id: increment_version
+      run: |
+        $version = "${{ steps.extract_version.outputs.version }}"
+        $major, $minor, $patch = $version.Replace('v', '').Split(".")
+        $next_patch = [int]$patch + 1
+        $next_version = "v$major.$minor.$next_patch"
+        Write-Output "Next tag: $next_version"
+        Write-Output "next_version=$next_version" >> $GITHUB_OUTPUT
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install pywin32 numpy Pillow pystray psutil nuitka
+
+    - name: Download DLL
+      run: |
+        $url = "https://www.dllme.com/dll/files/opencv_world490/45aa348d9487722dec3b6e6fcc3a7d96"
+        $outputPath = ".\_internal\opencv_world490.dll"
+        Invoke-WebRequest -Uri $url -OutFile $outputPath
+
+    - name: Build
+      run: |
+        cd modules
+        python -m nuitka --windows-uac-admin --standalone  --follow-imports --output-filename=update download.py
+        cd download.dist
+        echo Yes | xcopy /s /e "%cd%" C:\Users\onetwohour\Desktop\UmaKey\UmaKey\_internal\update
+        cd..
+        cd..
+        echo Yes | python -m nuitka --windows-icon-from-ico=./_internal/UmaKey.ico --windows-disable-console --windows-uac-admin --standalone --include-data-dir=_internal/=_internal --include-data-files=_internal/*.dll=_internal/ --include-data-files=_internal/update/*.dll=_internal/update/ --include-data-files=_internal/update/*.pyd=_internal/update/ --follow-imports --output-filename=UmaKey --enable-plugin=tk-inter main.py
+        Compress-Archive -Path main.dist -DestinationPath UmaKey.zip
+
+    # - name: Extract version number
+    #   id: extract_version
+    #   run: |
+    #     $latest_version = "${{ steps.get_latest_tag.outputs.latest_tag }}"
+    #     $versionWithoutV = $latest_version -replace 'v', ''
+    #     echo "version=$versionWithoutV" >> $GITHUB_OUTPUT
+          
+    # - name: Increment version number
+    #   id: increment_version
+    #   run: |
+    #     $version = "${{ steps.extract_version.outputs.tag_name }}"
+    #     $major, $minor, $patch = $version.Split(".")
+    #     $next_patch = [int]$patch + 1
+    #     $next_version = "v$major.$minor.$next_patch"
+    #     echo "next_version=$next_version" >> $GITHUB_OUTPUT
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.TOKEN }}
+      with:
+        tag_name: ${{ steps.increment_version.outputs.next_version }}
+        release_name: UmaKey ${{ steps.increment_version.outputs.next_version }}
+        draft: false
+        prerelease: true
+
+    - name: Upload Release Asset
+      id: upload-release-asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./
+        asset_name: UmaKey.zip
+        asset_content_type: application/octet-stream
