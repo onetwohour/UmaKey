@@ -28,17 +28,10 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install nuitka
-
-    - name: opencv-setup
-      uses: UrielCh/opencv-cache-action@V1
-      with:
-        branch: 4.x
-        BUILD_LIST: core,imgproc,imgcodecs,videoio,highgui,video,calib3d,features2d,objdetect,dnn,ml,photo,gapi,python3
-        NO_CONTRIB: ''
         
-    - name: Copy
+    - name: Download Dll
       run: |
-        Copy-Item -Path ".\opencv\build\x64\vc15\bin\opencv_world490.dll" -Destination "$pwd\_internal\update\" -Force -Confirm:$false
+        Invoke-RestMethod -Uri "https://drive.google.com/file/d/1-SaAuxdnOU5oIPTXrHOg6cfgyI8-3lq6/view?usp=drive_link" -OutFile ".\_internal\opencv_world490.dll"
       
     - name: Build
       run: |
