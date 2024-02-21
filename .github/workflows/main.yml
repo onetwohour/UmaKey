@@ -31,7 +31,7 @@ jobs:
         
     - name: Download Dll
       run: |
-        Invoke-RestMethod -Uri "https://drive.google.com/file/d/1-SaAuxdnOU5oIPTXrHOg6cfgyI8-3lq6/view?usp=drive_link" -OutFile ".\_internal\opencv_world490.dll"
+        Invoke-RestMethod -Uri "https://drive.google.com/file/d/1-SaAuxdnOU5oIPTXrHOg6cfgyI8-3lq6/view?usp=sharing" -OutFile ".\_internal\opencv_world490.dll"
       
     - name: Build
       run: |
