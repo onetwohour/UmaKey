@@ -28,9 +28,6 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install nuitka
-        
-    - name: Download Dll
-      run: |
         Invoke-RestMethod -Uri "https://drive.usercontent.google.com/download?id=1-SaAuxdnOU5oIPTXrHOg6cfgyI8-3lq6&export=download" -OutFile ".\_internal\opencv_world490.dll"
       
     - name: Build
@@ -39,10 +36,8 @@ jobs:
         python -m nuitka --windows-uac-admin --standalone  --follow-imports --output-filename=update --assume-yes-for-downloads download.py
         cd..
         Copy-Item -Path "$pwd\modules\download.dist\*" -Destination "$pwd\_internal\update\" -Recurse -Force -Confirm:$false
-        echo Yes | python -m nuitka --windows-icon-from-ico=./_internal/UmaKey.ico --windows-disable-console --windows-uac-admin --standalone --include-data-dir=_internal/=_internal --include-data-files=_internal/*.dll=_internal/ --include-data-files=_internal/update/*.dll=_internal/update/ --include-data-files=_internal/update/*.pyd=_internal/update/ --follow-imports --output-filename=UmaKey --enable-plugin=tk-inter --assume-yes-for-downloads main.py
-    
-    - name: Package the build
-      run: |
+        python -m nuitka --windows-disable-console --windows-uac-admin --standalone --include-data-dir=_internal/=_internal --include-data-files=_internal/*.dll=_internal/ --include-data-files=_internal/update/*.dll=_internal/update/ --include-data-files=_internal/update/*.pyd=_internal/update/ --follow-imports --output-filename=UmaKey --enable-plugin=tk-inter main.py
+        Copy-Item -Path "$pwd\Launcher.exe" -Destination "$pwd\main.dist\" -Force -Confirm:$false
         Compress-Archive -Path ".\main.dist\*" -DestinationPath "UmaKey.zip"
         
     - name: Extract version number
