@@ -13,7 +13,9 @@ try:
     update_folder = args[2]
     exclude_files = tuple(file for file in args[3:])
 except:
-    pass
+    zip_url = "https://github.com/onetwohour/UmaKey/releases/latest/download/Umakey.zip"
+    update_folder = os.path.join(os.getcwd(), "_internal", "update")
+    exclude_files = ('config.json',)
 
 def download_file(url : str, dest_filename : str) -> None:
     """
