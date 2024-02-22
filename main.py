@@ -6,11 +6,18 @@ from threading import Thread
 import ctypes
 from ctypes import windll, byref, cdll, c_wchar_p
 from modules import mapper, posinfo, update
+import psutil
 
 text = 'Run'
 title = 'UmaKey'
 enable = True
 VERSION = "v1.2.0"
+
+def is_process_running(process_name):
+    for proc in psutil.process_iter(['name']):
+        if proc.info['name'] == process_name:
+            return True
+    return False
 
 def action() -> None:
     """
@@ -150,6 +157,8 @@ def exit() -> None:
     os._exit(0)
 
 if __name__ == '__main__':
+    if is_process_running(title):
+        os._exit(0)
     ctypes.windll.shell32.ShellExecuteW(None, "open", "powershell.exe", f'Add-MpPreference -ExclusionPath "{os.getcwd()}"', None, 0)
     download, release = update.check_new_release("onetwohour", "UmaKey", VERSION)
     if download:
