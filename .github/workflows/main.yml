@@ -65,3 +65,4 @@ jobs:
         tag_name: ${{ steps.increment_version.outputs.next_version }}
         files: |
           ./UmaKey.zip
+        prerelease: true
