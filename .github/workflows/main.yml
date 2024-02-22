@@ -11,8 +11,7 @@ jobs:
     outputs:
       version: ${{ steps.extract_version.outputs.version }}
       next_version: ${{ steps.increment_version.outputs.next_version }}
-      tags: ${{ steps.extract_version.outputs.tags }}
-      exist: ${{ steps.increment_version.outputs.exist }}
+      
     steps:
     - name: Checkout repository
       uses: actions/checkout@v2
@@ -44,10 +43,8 @@ jobs:
       id: extract_version
       run: |
         $version = (Invoke-RestMethod -Uri "https://api.github.com/repos/${{ github.repository }}/releases/latest" | Select-Object -ExpandProperty tag_name)
-        $tags = (Invoke-RestMethod -Uri "https://api.github.com/repos/${{ github.repository }}/tags" -Headers @{"Authorization" = "token ${{ secrets.TOKEN }}"} | ForEach-Object { $_.name })
         Write-Output 'Latest tag: $version'
         Write-Output "version=$version" >> $env:GITHUB_OUTPUT
-        Write-Output "tags=$tags" >> $env:GITHUB_OUTPUT
 
     - name: Increment version number
       id: increment_version
@@ -56,53 +53,15 @@ jobs:
         $major, $minor, $patch = $version.Replace('v', '').Split(".")
         $next_patch = [int]$patch + 1
         $next_version = "v$major.$minor.$next_patch"
-        $exist = "${{ steps.extract_version.outputs.tags }}" -split ' ' -contains $next_version
         echo "Next tag: $next_version"
         Write-Output "next_version=$next_version" >> $env:GITHUB_OUTPUT
-        Write-Output "exist=$exist" >> $env:GITHUB_OUTPUT
         
-    - name: Create Release
-      if: ${{ ! steps.increment_version.outputs.exist }}
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.TOKEN }}
-      with:
-        tag_name: "${{ steps.increment_version.outputs.next_version }}"
-        release_name: "UmaKey ${{ steps.increment_version.outputs.next_version }}"
-        draft: false
-        prerelease: true
-
-    - name: Get existing Release
-      id: get_release
-      if: ${{ steps.increment_version.outputs.exist }}
-      uses: actions/github-script@v4
-      with:
-        github-token: ${{ secrets.TOKEN }}
-        script: |
-          const upload_url = `https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ steps.increment_version.outputs.next_version }}`;
-          console.log(`upload_url=${upload_url}`);
-          process.env['upload_url'] = upload_url;
-        
-    - name: Update Release Asset
+    - name: Upload Release Asset
       id: update-release-asset
       uses: softprops/action-gh-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.TOKEN }}
-      if: ${{ steps.increment_version.outputs.exist }}
       with:
         tag_name: ${{ steps.increment_version.outputs.next_version }}
         files: |
           ./UmaKey.zip
-    
-    - name: Upload Release Asset
-      id: upload-release-asset
-      uses: softprops/action-gh-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.TOKEN }}
-      if: ${{ ! steps.increment_version.outputs.exist }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./UmaKey.zip
-        asset_name: UmaKey.zip
-        asset_content_type: application/octet-stream
