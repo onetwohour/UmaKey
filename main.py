@@ -10,7 +10,7 @@ from modules import mapper, posinfo, update
 text = 'Run'
 title = 'UmaKey'
 enable = True
-VERSION = "v1.1.0"
+VERSION = "v1.2.0"
 
 def action() -> None:
     """
