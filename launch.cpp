@@ -83,6 +83,7 @@ int main() {
         }
         else {
             ShellExecute(NULL, L"open", L"_internal\\update\\update.exe", NULL, NULL, SW_SHOWNORMAL);
+            return 0;
         }
         if (!isProcessRunning(processName) && count++ < 10) {
             Sleep(1000);
