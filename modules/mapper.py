@@ -13,6 +13,7 @@ import psutil
 import win32process
 from threading import Thread
 import ctypes
+import chardet
 from ctypes import windll, cdll, c_wchar_p
 user32 = windll.user32
 user32.SetProcessDPIAware()
@@ -137,7 +138,9 @@ def load_json() -> None:
             json.dump({"window_title":window_title, "support_key":support_key, "type":text, "key_mapping":save, "screen_size":screen_size, "MAC":mac}, f, indent=4)
     else:
         try:
-            with open('./config.json', 'r') as f:
+            with open('./config.json', 'rb') as f:
+                raw = f.read()
+            with open('./config.json', 'r', encoding=chardet.detect(raw)["encoding"]) as f:
                 load = json.load(f)
 
             if load.get('key_mapping') != None:
