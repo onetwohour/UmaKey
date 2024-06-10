@@ -543,21 +543,27 @@ class AutoClicker:
             left, top, right, bottom = left + 20, top + 60, right - 20, bottom - 20
             key = max(left, min(key[0], right)), max(top, min(key[1], bottom))
             self.click(*key)
-        elif key.startswith('sleep'): # 딜레이
-            try:
-                time.sleep(float(key.lstrip('sleep ')))
-            except:
-                pass
-        elif key.startswith('drag'):
-            try:
-                self.drag(key.lstrip('drag '))
-            except:
-                pass
-        elif key_to_byte.get(key) is not None: # 단순 매핑
-            self.keyboard(key_to_byte[key]) 
+        elif type(key) == str:
+            if key.startswith('sleep'): # 딜레이
+                try:
+                    time.sleep(float(key.lstrip('sleep ')))
+                except:
+                    pass
+            elif key.startswith('drag'):
+                try:
+                    self.drag(key.lstrip('drag '))
+                except:
+                    pass
+            elif key_to_byte.get(key) is not None: # 단순 매핑
+                self.keyboard(key_to_byte[key]) 
         elif load.get(key) is not None: # 매크로 속 매크로
             for text in self.decode(key):
                 self.macro(text)
+        elif byte_to_key.get(key) is not None:
+            if key_mapping.get(byte_to_key.get(key)) is not None:
+                self.macro(key_mapping[byte_to_key[key]])
+            else:
+                self.keyboard(key) 
 
     def __del__(self) -> None:
         """

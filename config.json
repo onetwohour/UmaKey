@@ -1,5 +1,5 @@
 {
-    "window_title": "umamusume",
+    "window_title": "우마무스메 프리티더비",
     "support_key": [
         "BACKSPACE, TAB, CLEAR, ENTER, SHIFT, CTRL, PAUSE, CAPS_LOCK, ESC, SPACEBAR, PAGE_UP, PAGE_DOWN, ",
         "END, HOME, LEFT_ARROW, UP_ARROW, RIGHT_ARROW, DOWN_ARROW, PRINT_SCREEN, INSERT, DELETE, NUMPAD_0, ",
@@ -33,11 +33,16 @@
         "S": "[255, 247, 192]",
         "D": "[255, 228, 239]",
         "/": "(730, 1330)",
-        "TAB": "drag (20, 1230) (788, 1230)"
+        "TAB": "drag (20, 1230) (788, 1230)",
+        "1": "(130, 1310)",
+        "2": "(280, 1310)",
+        "3": "(430, 1310)",
+        "4": "(580, 1310)",
+        "5": "(630, 1310)"
     },
     "screen_size": {
         "x": 808,
         "y": 1453
     },
-    "MAC": "RIGHT_ARROW, sleep 0.1, RIGHT_ARROW, sleep 0.1, RIGHT_ARROW, sleep 0.1, RIGHT_ARROW"
+    "MAC": "1, sleep 0.1, 2, sleep 0.1, 3, sleep 0.1, 4, sleep 0.1, 5"
 }
