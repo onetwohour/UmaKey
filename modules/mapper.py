@@ -105,7 +105,12 @@ def load_json() -> None:
         'S':    [255, 247, 192],    # 2번 선택지
         'D':    [255, 228, 239],    # 3번 선택지
         '/':    (730, 1330),
-        "TAB": "drag (20, 1230) (788, 1230)" # 훈련 돌아보기 2
+        "TAB": "drag (20, 1230) (788, 1230)", # 훈련 돌아보기 2
+        "1": "(130, 1310)",
+        "2": "(280, 1310)",
+        "3": "(430, 1310)",
+        "4": "(580, 1310)",
+        "5": "(630, 1310)"
     }
 
     screen_size = {
@@ -122,7 +127,7 @@ def load_json() -> None:
                 "NUM_LOCK, SCROLL_LOCK, LEFT_SHIFT, RIGHT_SHIFT, LEFT_CTRL, RIGHT_CTRL, ;, +, ,, ",
                 "-, ., /, `, [, \\, ], '"]
 
-    mac = "RIGHT_ARROW, sleep 0.1, RIGHT_ARROW, sleep 0.1, RIGHT_ARROW, sleep 0.1, RIGHT_ARROW"
+    mac = "1, sleep 0.1, 2, sleep 0.1, 3, sleep 0.1, 4, sleep 0.1, 5"
 
     text = {
         "RGB": "[0, 0, 0]",
