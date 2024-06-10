@@ -11,7 +11,7 @@ import psutil
 text = 'Run'
 title = 'UmaKey'
 enable = True
-VERSION = "v1.2.1"
+VERSION = "v1.2.2"
 
 def is_process_running(process_name):
     for proc in psutil.process_iter(['name']):
