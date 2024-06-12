@@ -117,7 +117,7 @@ def load_json() -> None:
 
     :return: None
     """
-    global key_mapping, ratio, load, window_title
+    global key_mapping, ratio, load, window_title, screen_size
 
     if not os.path.isfile('./config.json'):
         with open('./config.json', 'w') as f:

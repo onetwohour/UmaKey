@@ -11,7 +11,7 @@ import re
 import psutil
 import win32process
 from threading import Thread
-import settingLoad
+from modules import settingLoad
 import ctypes
 from ctypes import windll, cdll, c_wchar_p
 user32 = windll.user32

@@ -2,7 +2,7 @@ import tkinter as tk
 import win32gui
 from PIL import ImageGrab
 from threading import Thread
-import settingLoad
+from modules import settingLoad
 from ctypes import windll
 user32 = windll.user32
 user32.SetProcessDPIAware()
