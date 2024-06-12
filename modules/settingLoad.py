@@ -3,9 +3,9 @@ import json
 import os
 import chardet
 
-# window_title = "umamusume"
-# key_mapping = {}
-# ratio = 0, 0
+window_title = "umamusume"
+key_mapping = {}
+ratio = 0, 0
 
 byte_to_key = {
     win32con.VK_BACK: "BACKSPACE", win32con.VK_TAB: "TAB", win32con.VK_CLEAR: "CLEAR",

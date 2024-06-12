@@ -2,7 +2,7 @@ import tkinter as tk
 import win32gui
 from PIL import ImageGrab
 from threading import Thread
-from modules.settingLoad import *
+import settingLoad
 from ctypes import windll
 user32 = windll.user32
 user32.SetProcessDPIAware()
@@ -16,7 +16,7 @@ class WindowHandler:
         """
         Updates the hwnd attribute by finding the window handle.
         """
-        self.hwnd = win32gui.FindWindow(None, window_title)
+        self.hwnd = win32gui.FindWindow(None, settingLoad.window_title)
 
 class Window():
     def __init__(self) -> None:
@@ -41,7 +41,7 @@ class Window():
         self.text = tk.Label(self.root, text="", font=("Arial", 10), bg="white", fg="black")
         self.text.pack(fill=tk.BOTH, expand=True)
 
-        load_json()
+        settingLoad.load_json()
 
     def update_position(self) -> None:
         """
