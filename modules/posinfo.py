@@ -2,11 +2,10 @@ import tkinter as tk
 import win32gui
 from PIL import ImageGrab
 from threading import Thread
+from modules.settingLoad import *
 from ctypes import windll
 user32 = windll.user32
 user32.SetProcessDPIAware()
-
-window_title = 'umamusume'
 
 class WindowHandler:
     def __init__(self) -> None:
@@ -41,6 +40,8 @@ class Window():
 
         self.text = tk.Label(self.root, text="", font=("Arial", 10), bg="white", fg="black")
         self.text.pack(fill=tk.BOTH, expand=True)
+
+        load_json()
 
     def update_position(self) -> None:
         """

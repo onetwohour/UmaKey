@@ -11,7 +11,7 @@ import psutil
 text = 'Run'
 title = 'UmaKey'
 enable = True
-VERSION = "v1.2.2"
+VERSION = "v1.2.3"
 
 def is_process_running(process_name):
     for proc in psutil.process_iter(['name']):
@@ -166,7 +166,6 @@ if __name__ == '__main__':
         alert()
     update_path = os.path.join(os.getcwd(), "_internal", "update")
     exclude_files = ('config.json',)
-    global auto_clicker, icon, infowindow
     auto_clicker = mapper.AutoClicker()
     infowindow = posinfo.Window()
     img = Image.open('./_internal/UmaKey.ico')
