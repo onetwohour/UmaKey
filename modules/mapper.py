@@ -11,7 +11,7 @@ import re
 import psutil
 import win32process
 from threading import Thread
-from modules.settingLoad import *
+import settingLoad
 import ctypes
 from ctypes import windll, cdll, c_wchar_p
 user32 = windll.user32
@@ -49,7 +49,7 @@ class WindowHandler:
 
         :return: None
         """
-        self.hwnd = win32gui.FindWindow(None, window_title)
+        self.hwnd = win32gui.FindWindow(None, settingLoad.window_title)
         if not self.hwnd:
             return
         process = self.find_process_by_name('umamusume.exe')
@@ -61,7 +61,7 @@ class WindowHandler:
             return
 
         def callback(hwnd : int, _) -> None:
-            if win32gui.IsWindowVisible(hwnd) and window_title == win32gui.GetWindowText(hwnd):
+            if win32gui.IsWindowVisible(hwnd) and settingLoad.window_title == win32gui.GetWindowText(hwnd):
                 _, pid = win32process.GetWindowThreadProcessId(hwnd)
                 if pid == process:
                     self.hwnd = hwnd
@@ -235,7 +235,7 @@ class AutoClicker:
             # 최소화시 화면 크기가 달라짐
             if win32gui.IsIconic(self.window_handler.hwnd):
                 timeout += 0.1
-            elif abs(((bottom - top) / (right - left)) / (ratio[1] / ratio[0]) - 1) > 0.1:
+            elif abs(((bottom - top) / (right - left)) / (settingLoad.ratio[1] / settingLoad.ratio[0]) - 1) > 0.1:
                 self.show_warning_dialog("게임 화면 비율이 다릅니다.")
                 break
             time.sleep(0.1)
@@ -277,7 +277,7 @@ class AutoClicker:
         :rtype: list
         """
         keys = []
-        tokens = re.findall(r'\[.*?\]|\(.*?\)|\d+|\b\w+\s[\d.]+\b|\w+', load[text])
+        tokens = re.findall(r'\[.*?\]|\(.*?\)|\d+|\b\w+\s[\d.]+\b|\w+', settingLoad.load[text])
         for token in tokens:
             if token.startswith('('):
                 if len(keys) > 0 and str(keys[-1]).startswith('drag') and keys[-1].count('(') < 2:
@@ -287,11 +287,11 @@ class AutoClicker:
             elif token.startswith('['):
                 keys.append([int(x) for x in token[1:-1].split(',')])
             elif token.isdigit():
-                keys.append(key_to_byte[token])
+                keys.append(settingLoad.key_to_byte[token])
             elif re.match(r'\b\w+\s[\d.]+\b', token):
                 keys.append(token)
-            elif key_mapping.get(token) is not None:
-                keys.append(key_mapping[token])
+            elif settingLoad.key_mapping.get(token) is not None:
+                keys.append(settingLoad.key_mapping[token])
             else:
                 keys.append(token) 
         return keys
@@ -306,11 +306,11 @@ class AutoClicker:
         :return: True if the event was handled successfully, False otherwise
         :rtype: bool
         """
-        key = key_mapping.get(byte_to_key.get(byte_data))
+        key = settingLoad.key_mapping.get(settingLoad.byte_to_key.get(byte_data))
         if key is None or not self.window_handler.is_window_foreground():
             self.keyboard(byte_data)
             return False
-        if type(key) == str and load.get(key) is not None:
+        if type(key) == str and settingLoad.load.get(key) is not None:
             keys = self.decode(key)  
         else:
             keys = (key,)
@@ -363,10 +363,10 @@ class AutoClicker:
         distance = min(max(abs(x1 - x2) / 20, abs(y1 - y2) / 20, 1), 40)
         width = right - left
         height = bottom - top
-        x1 = x1 * (width // ratio[0]) + left
-        y1 = y1 * (height // ratio[1]) + top
-        x2 = x2 * (width // ratio[0]) + left
-        y2 = y2 * (height // ratio[1]) + top
+        x1 = x1 * (width // settingLoad.ratio[0]) + left
+        y1 = y1 * (height // settingLoad.ratio[1]) + top
+        x2 = x2 * (width // settingLoad.ratio[0]) + left
+        y2 = y2 * (height // settingLoad.ratio[1]) + top
         left, top, right, bottom = left + 20, top + 60, right - 20, bottom - 20
         x1 = left if x1 < left else (right if x1 > right else x1)
         y1 = top if y1 < top else (bottom if y1 > bottom else y1)
@@ -403,7 +403,7 @@ class AutoClicker:
                 self.timer = time.time()
         elif type(key) == tuple: # 좌표 기반
             left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
-            key = key[0] * (right - left) // ratio[0] + left, key[1] * (bottom - top) // ratio[1] + top
+            key = key[0] * (right - left) // settingLoad.ratio[0] + left, key[1] * (bottom - top) // settingLoad.ratio[1] + top
             left, top, right, bottom = left + 20, top + 60, right - 20, bottom - 20
             key = max(left, min(key[0], right)), max(top, min(key[1], bottom))
             self.click(*key)
@@ -418,16 +418,13 @@ class AutoClicker:
                     self.drag(key.lstrip('drag '))
                 except:
                     pass
-            elif key_to_byte.get(key) is not None: # 단순 매핑
-                self.keyboard(key_to_byte[key]) 
-        elif load.get(key) is not None: # 매크로 속 매크로
+            elif settingLoad.key_to_byte.get(key) is not None: # 단순 매핑
+                self.keyboard(settingLoad.key_to_byte[key]) 
+        elif settingLoad.load.get(key) is not None: # 매크로 속 매크로
             for text in self.decode(key):
                 self.macro(text)
-        elif byte_to_key.get(key) is not None:
-            if key_mapping.get(byte_to_key.get(key)) is not None:
-                self.macro(key_mapping[byte_to_key[key]])
-            else:
-                self.keyboard(key) 
+        elif settingLoad.key_mapping.get(settingLoad.byte_to_key.get(key)) is not None:
+            self.macro(settingLoad.key_mapping[settingLoad.byte_to_key[key]])
 
     def __del__(self) -> None:
         """
@@ -456,7 +453,7 @@ class AutoClicker:
         is_run = not is_run
         if is_run:
             self.error = ""
-            load_json()
+            settingLoad.load_json()
             try:
                 self.run()
             except Exception as e:
