@@ -64,7 +64,7 @@ class Window():
         except:
             self.x, self.y = 0, 0
         
-        if self.root is not None:
+        if self.root is not None and self.run:
             self.root.geometry(f"+{self.x+2}+{self.y+2}")
             self.update_id = self.root.after(8, self.update_position)
 
@@ -74,17 +74,20 @@ class Window():
 
         :return: None
         """
-        left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
-        game_window = right-left, bottom-top
-        px, py = self.x - left, self.y - top
-        px, py = max(min(px, game_window[0]), 0), max(min(py, game_window[1]), 0)
-        x1, y1 = self.x - 1, self.y - 1
-        x2, y2 = self.x + 1, self.y + 1
-        screenshot = ImageGrab.grab(bbox=(x1, y1, x2, y2), all_screens=True)
-        color = screenshot.getpixel((1, 1))
-        text = f"{game_window[0]}x{game_window[1]}\n({px}, {py})\n{[*color]}"
-        if self.text is not None:
-            self.text.config(text=text)
+        try:
+            left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
+            game_window = right-left, bottom-top
+            px, py = self.x - left, self.y - top
+            px, py = max(min(px, game_window[0]), 0), max(min(py, game_window[1]), 0)
+            x1, y1 = self.x - 1, self.y - 1
+            x2, y2 = self.x + 1, self.y + 1
+            screenshot = ImageGrab.grab(bbox=(x1, y1, x2, y2), all_screens=True)
+            color = screenshot.getpixel((1, 1))
+            text = f"{game_window[0]}x{game_window[1]}\n({px}, {py})\n{[*color]}"
+            if self.text is not None:
+                self.text.config(text=text)
+        except:
+            pass
 
     def update_text(self) -> None:
         """
@@ -98,11 +101,11 @@ class Window():
         if not win32gui.IsWindow(self.window_handler.hwnd):
             self.window_handler.update()
             self.text.config(text="Game Closed.")
-        else:
+        elif self.run:
             self.executor.submit(self.update)
 
-        if self.text is not None:
-            self.update_text_id = self.text.after(500, self.update_text)
+        if self.text is not None and self.run:
+            self.update_text_id = self.root.after(500, self.update_text)
 
     def main(self) -> None:
         """
@@ -128,7 +131,7 @@ class Window():
                 self.root.after_cancel(self.update_id)
                 self.update_id = None
             if self.update_text_id is not None:
-                self.text.after_cancel(self.update_text_id)
+                self.root.after_cancel(self.update_text_id)
                 self.update_text_id = None
             self.root.destroy()
         finally:
