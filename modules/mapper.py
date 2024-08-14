@@ -364,10 +364,10 @@ class AutoClicker:
         distance = min(max(abs(x1 - x2) / 20, abs(y1 - y2) / 20, 1), 40)
         width = right - left
         height = bottom - top
-        x1 = x1 * (width // settingLoad.ratio[0]) + left
-        y1 = y1 * (height // settingLoad.ratio[1]) + top
-        x2 = x2 * (width // settingLoad.ratio[0]) + left
-        y2 = y2 * (height // settingLoad.ratio[1]) + top
+        x1 = int(x1 * (width / settingLoad.ratio[0]) + left)
+        y1 = int(y1 * (height / settingLoad.ratio[1]) + top)
+        x2 = int(x2 * (width / settingLoad.ratio[0]) + left)
+        y2 = int(y2 * (height / settingLoad.ratio[1]) + top)
         left, top, right, bottom = left + 20, top + 60, right - 20, bottom - 20
         x1 = left if x1 < left else (right if x1 > right else x1)
         y1 = top if y1 < top else (bottom if y1 > bottom else y1)
