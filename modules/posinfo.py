@@ -1,7 +1,8 @@
 import tkinter as tk
 import win32gui
 from PIL import ImageGrab
-from concurrent.futures import ThreadPoolExecutor
+from threading import Thread
+from threading import Event
 from modules import settingLoad
 from ctypes import windll
 user32 = windll.user32
@@ -28,6 +29,7 @@ class Window():
         self.x = 0
         self.y = 0
         self.executor = None
+        self.event = Event()
 
     def setup(self) -> None:
         """
@@ -38,7 +40,6 @@ class Window():
         self.root = tk.Tk()
         self.root.overrideredirect(True)
         self.window_handler = WindowHandler()
-        self.executor = ThreadPoolExecutor(max_workers=1)
 
         self.root.geometry("140x70")
         self.root.config(background="white")
@@ -48,6 +49,8 @@ class Window():
         self.text.pack(fill=tk.BOTH, expand=True)
 
         settingLoad.load_json()
+
+        self.event.clear()
 
     def update_position(self) -> None:
         """
@@ -74,20 +77,24 @@ class Window():
 
         :return: None
         """
-        try:
-            left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
-            game_window = right-left, bottom-top
-            px, py = self.x - left, self.y - top
-            px, py = max(min(px, game_window[0]), 0), max(min(py, game_window[1]), 0)
-            x1, y1 = self.x - 1, self.y - 1
-            x2, y2 = self.x + 1, self.y + 1
-            screenshot = ImageGrab.grab(bbox=(x1, y1, x2, y2), all_screens=True)
-            color = screenshot.getpixel((1, 1))
-            text = f"{game_window[0]}x{game_window[1]}\n({px}, {py})\n{[*color]}"
-            if self.text is not None:
-                self.text.config(text=text)
-        except:
-            pass
+        def work():
+            try:
+                left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
+                game_window = right-left, bottom-top
+                px, py = self.x - left, self.y - top
+                px, py = max(min(px, game_window[0]), 0), max(min(py, game_window[1]), 0)
+                x1, y1 = self.x - 1, self.y - 1
+                x2, y2 = self.x + 1, self.y + 1
+                screenshot = ImageGrab.grab(bbox=(x1, y1, x2, y2), all_screens=True)
+                color = screenshot.getpixel((1, 1))
+                text = f"{game_window[0]}x{game_window[1]}\n({px}, {py})\n{[*color]}"
+                if self.text is not None and self.run:
+                    self.text.config(text=text)
+            except:
+                pass
+        
+        work()
+        self.event.clear()
 
     def update_text(self) -> None:
         """
@@ -101,8 +108,9 @@ class Window():
         if not win32gui.IsWindow(self.window_handler.hwnd):
             self.window_handler.update()
             self.text.config(text="Game Closed.")
-        elif self.run:
-            self.executor.submit(self.update)
+        elif self.run and not self.event.is_set():
+            self.event.set()
+            Thread(target=self.update).run()
 
         if self.text is not None and self.run:
             self.update_text_id = self.root.after(500, self.update_text)
@@ -126,7 +134,10 @@ class Window():
         :return: None
         """
         try:
-            self.executor.shutdown(wait=False, cancel_futures=True)
+            while self.event.is_set():
+                pass
+            self.event.set()
+
             if self.update_id is not None:
                 self.root.after_cancel(self.update_id)
                 self.update_id = None
