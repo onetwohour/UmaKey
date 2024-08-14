@@ -228,7 +228,8 @@ class AutoClicker:
         delay = time.time()
         timeout = 15
         # 처음 실행 시 화면 크기가 요동치므로 무시
-        time.sleep(10)
+        while is_run and time.time() - delay < 10:
+            time.sleep(0.1)
         # 5초간 화면 비율 검사
         while is_run and time.time() - delay < timeout and win32gui.IsWindow(self.window_handler.hwnd) and self.error == "":
             left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
