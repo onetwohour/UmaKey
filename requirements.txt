@@ -1,6 +1,6 @@
-pywin32
-numpy
-Pillow
-pystray
-psutil
-chardet
+pywin32==306
+numpy==1.26.4
+Pillow==10.3.0
+pystray==0.19.5
+psutil==5.9.8
+chardet==5.2.0
