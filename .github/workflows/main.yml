@@ -35,7 +35,7 @@ jobs:
         python -m nuitka --windows-uac-admin --standalone  --follow-imports --output-filename=update --assume-yes-for-downloads download.py
         cd..
         Copy-Item -Path "$pwd\modules\download.dist\*" -Destination "$pwd\_internal\update\" -Recurse -Force -Confirm:$false
-        python -m nuitka --windows-disable-console --windows-uac-admin --standalone --include-data-dir=_internal/=_internal --include-data-files=_internal/*.dll=_internal/ --include-data-files=_internal/*.exe=_internal/ --include-data-files=_internal/update/*.dll=_internal/update/ --include-data-files=_internal/update/*.pyd=_internal/update/ --follow-imports --output-filename=UmaKey --enable-plugin=tk-inter main.py
+        python -m nuitka --windows-disable-console --windows-uac-admin --standalone --include-data-dir=_internal/=_internal --include-data-files=_internal/*.dll=_internal/ --include-data-files=_internal/*.exe=_internal/ --include-data-files=_internal/update/*.exe=_internal/update/ --include-data-files=_internal/update/*.dll=_internal/update/ --include-data-files=_internal/update/*.pyd=_internal/update/ --follow-imports --output-filename=UmaKey --enable-plugin=tk-inter main.py
         Copy-Item -Path "$pwd\Launcher.exe" -Destination "$pwd\main.dist\" -Force -Confirm:$false
         Compress-Archive -Path ".\main.dist\*" -DestinationPath "UmaKey.zip"
         
