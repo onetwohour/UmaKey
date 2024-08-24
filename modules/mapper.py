@@ -348,14 +348,6 @@ class AutoClicker:
         :param y: The y-coordinate of the click
         :type y: int
         """
-        if (x, y) == (-1, -1):
-            x, y = win32api.GetCursorPos()
-        else:
-            left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
-            x, y = int(x * (right - left) / settingLoad.ratio[0] + left), int(y * (bottom - top) / settingLoad.ratio[1] + top)
-            left, top, right, bottom = left + 20, top + 60, right - 20, bottom - 20
-            x, y = max(left, min(x, right)), max(top, min(y, bottom))
-
         win32api.SetCursorPos((x, y))
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
@@ -369,27 +361,33 @@ class AutoClicker:
         """
         (x1, y1), (x2, y2) = (tuple(map(int, match)) for match in re.findall(r'\((\w+), (\w+)\)', pos))
         left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
-        if (x1, y1) == (x2, y2):
-            self.click(x1, y1)
-            return
         
         if (x1, y1) == (-1, -1):
             x1, y1 = win32api.GetCursorPos()
-        elif (x2, y2) == (-1, -1):
+            if not (left + 20 < x1 < right - 20 and top + 60 < y1 < bottom - 20):
+                return
+        if (x2, y2) == (-1, -1):
             x2, y2 = win32api.GetCursorPos()
+            if not (left + 20 < x2 < right - 20 and top + 60 < y2 < bottom - 20):
+                return
 
-        distance = min(max(abs(x1 - x2) / 20, abs(y1 - y2) / 20, 1), 40)
         width = right - left
         height = bottom - top
+
         x1 = int(x1 * (width / settingLoad.ratio[0]) + left)
         y1 = int(y1 * (height / settingLoad.ratio[1]) + top)
         x2 = int(x2 * (width / settingLoad.ratio[0]) + left)
         y2 = int(y2 * (height / settingLoad.ratio[1]) + top)
         left, top, right, bottom = left + 20, top + 60, right - 20, bottom - 20
-        x1 = left if x1 < left else (right if x1 > right else x1)
-        y1 = top if y1 < top else (bottom if y1 > bottom else y1)
-        x2 = left if x2 < left else (right if x2 > right else x2)
-        y2 = top if y2 < top else (bottom if y2 > bottom else y2)
+
+        x1, y1 = max(left, min(x1, right)), max(top, min(y1, bottom))
+        x2, y2 = max(left, min(x2, right)), max(top, min(y2, bottom))
+        distance = min(max(abs(x1 - x2) / 20, abs(y1 - y2) / 20, 1), 40)
+        
+        if (x1, y1) == (x2, y2):
+            self.click(x1, y1)
+            return
+
         win32api.SetCursorPos((x1, y1))
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
         time.sleep(0.01)
@@ -419,18 +417,26 @@ class AutoClicker:
                     self.click(cx, cy)
                 self.timer = time.time()
         elif isinstance(key, tuple): # 좌표
-            self.click(*key)
+            left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
+            if key == (-1, -1):
+                x, y = win32api.GetCursorPos()
+                if not (left + 20 < x < right - 20 and top + 60 < y < bottom - 20):
+                    return
+            else:
+                x, y = int(key[0] * (right - left) / settingLoad.ratio[0] + left), int(key[1] * (bottom - top) / settingLoad.ratio[1] + top)
+                left, top, right, bottom = left + 20, top + 60, right - 20, bottom - 20
+                x, y = max(left, min(x, right)), max(top, min(y, bottom))
+            self.click(x, y)
         elif isinstance(key, str):
-            if key.startswith(['sleep', 'drag']):
+            if key.startswith(('sleep', 'drag')):
                 command, value = key.split(maxsplit=1)
                 try:
-                    value = float(value)
+                    if command == 'sleep': # 딜레이
+                        time.sleep(float(value))
+                    elif command == 'drag':
+                        self.drag(value)
                 except:
                     return
-                if command == 'sleep': # 딜레이
-                    time.sleep(value)
-                elif command == 'drag':
-                    self.drag(value)
             elif settingLoad.key_to_byte.get(key) is not None: # 단순 매핑
                 self.keyboard(settingLoad.key_to_byte[key]) 
         elif settingLoad.load.get(key) is not None: # 매크로 속 매크로
