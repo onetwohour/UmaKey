@@ -159,11 +159,7 @@ class Window():
         :return: None
         """
         self.run = not self.run
-
-        if self.run:
-            self.main()
-        else:
-            self.exit()
+        self.main() if self.run else self.exit()
 
 if __name__ == '__main__':
     window = Window()

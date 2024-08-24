@@ -348,6 +348,14 @@ class AutoClicker:
         :param y: The y-coordinate of the click
         :type y: int
         """
+        if (x, y) == (-1, -1):
+            x, y = win32api.GetCursorPos()
+        else:
+            left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
+            x, y = int(x * (right - left) / settingLoad.ratio[0] + left), int(y * (bottom - top) / settingLoad.ratio[1] + top)
+            left, top, right, bottom = left + 20, top + 60, right - 20, bottom - 20
+            x, y = max(left, min(x, right)), max(top, min(y, bottom))
+
         win32api.SetCursorPos((x, y))
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
@@ -361,6 +369,15 @@ class AutoClicker:
         """
         (x1, y1), (x2, y2) = (tuple(map(int, match)) for match in re.findall(r'\((\w+), (\w+)\)', pos))
         left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
+        if (x1, y1) == (x2, y2):
+            self.click(x1, y1)
+            return
+        
+        if (x1, y1) == (-1, -1):
+            x1, y1 = win32api.GetCursorPos()
+        elif (x2, y2) == (-1, -1):
+            x2, y2 = win32api.GetCursorPos()
+
         distance = min(max(abs(x1 - x2) / 20, abs(y1 - y2) / 20, 1), 40)
         width = right - left
         height = bottom - top
@@ -393,32 +410,27 @@ class AutoClicker:
         :param key: The macro command to execute
         :type key: str
         """
-        if type(key) == list: # 색깔 기반
+        if isinstance(key, list): # 색깔
             self.color_finder.hwnd = self.window_handler.hwnd
             self.color_finder.timer = self.timer
             cx, cy = self.color_finder.find_color(key, self.tolerance)
             if cx is not None and cy is not None:
                 if cx or cy:
                     self.click(cx, cy)
-                    cx = cy = None
                 self.timer = time.time()
-        elif type(key) == tuple: # 좌표 기반
-            left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
-            key = key[0] * (right - left) // settingLoad.ratio[0] + left, key[1] * (bottom - top) // settingLoad.ratio[1] + top
-            left, top, right, bottom = left + 20, top + 60, right - 20, bottom - 20
-            key = max(left, min(key[0], right)), max(top, min(key[1], bottom))
+        elif isinstance(key, tuple): # 좌표
             self.click(*key)
-        elif type(key) == str:
-            if key.startswith('sleep'): # 딜레이
+        elif isinstance(key, str):
+            if key.startswith(['sleep', 'drag']):
+                command, value = key.split(maxsplit=1)
                 try:
-                    time.sleep(float(key.lstrip('sleep ')))
+                    value = float(value)
                 except:
-                    pass
-            elif key.startswith('drag'):
-                try:
-                    self.drag(key.lstrip('drag '))
-                except:
-                    pass
+                    return
+                if command == 'sleep': # 딜레이
+                    time.sleep(value)
+                elif command == 'drag':
+                    self.drag(value)
             elif settingLoad.key_to_byte.get(key) is not None: # 단순 매핑
                 self.keyboard(settingLoad.key_to_byte[key]) 
         elif settingLoad.load.get(key) is not None: # 매크로 속 매크로
