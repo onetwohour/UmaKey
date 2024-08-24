@@ -363,11 +363,11 @@ class AutoClicker:
         
         if (x1, y1) == (-1, -1):
             x1, y1 = win32api.GetCursorPos()
-            if not (left + 20 < x1 < right - 20 and top + 60 < y1 < bottom - 20):
+            if not (left + 20 <= x1 <= right - 20 and top + 60 <= y1 <= bottom - 20):
                 return
         if (x2, y2) == (-1, -1):
             x2, y2 = win32api.GetCursorPos()
-            if not (left + 20 < x2 < right - 20 and top + 60 < y2 < bottom - 20):
+            if not (left + 20 <= x2 <= right - 20 and top + 60 <= y2 <= bottom - 20):
                 return
 
         width = right - left
@@ -419,7 +419,7 @@ class AutoClicker:
             left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
             if key == (-1, -1):
                 x, y = win32api.GetCursorPos()
-                if not (left + 20 < x < right - 20 and top + 60 < y < bottom - 20):
+                if not (left + 20 <= x <= right - 20 and top + 60 <= y <= bottom - 20):
                     return
             else:
                 x, y = int(key[0] * (right - left) / settingLoad.ratio[0] + left), int(key[1] * (bottom - top) / settingLoad.ratio[1] + top)
