@@ -81,7 +81,6 @@ class WindowHandler:
                 win32gui.ShowWindow(self.hwnd, win32con.SW_RESTORE)
             else:
                 pythoncom.CoInitialize()
-                win32gui.SetForegroundWindow(self.hwnd)
                 shell = win32com.client.Dispatch("WScript.Shell")
                 shell.SendKeys('%')
                 win32gui.SetForegroundWindow(self.hwnd)
@@ -348,7 +347,7 @@ class AutoClicker:
         :param y: The y-coordinate of the click
         :type y: int
         """
-        win32api.SetCursorPos((x, y))
+        ctypes.windll.user32.SetCursorPos(x, y)
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
 
@@ -388,16 +387,16 @@ class AutoClicker:
             self.click(x1, y1)
             return
 
-        win32api.SetCursorPos((x1, y1))
+        ctypes.windll.user32.SetCursorPos(x1, y1)
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
         time.sleep(0.01)
         dx, dy = (x2 - x1) / distance, (y2 - y1) / distance
         for _ in range(int(distance)):
             x1 += dx
             y1 += dy
-            win32api.SetCursorPos((int(x1), int(y1)))
+            ctypes.windll.user32.SetCursorPos(int(x1), int(y1))
             time.sleep(0.015)
-        win32api.SetCursorPos((x2, y2))
+        ctypes.windll.user32.SetCursorPos(x2, y2)
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
 
     # 적절한 기능 수행
