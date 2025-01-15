@@ -156,6 +156,8 @@ class AutoClicker:
         self.timer = 0
         self.runner = 0
         self.error = ""
+        self.key_index = 0
+        self.key_target = None
 
     # 키보드 입력 감지 프로그램
     def open_exe(self) -> None:
@@ -290,8 +292,8 @@ class AutoClicker:
                 keys.append(settingLoad.key_to_byte[token])
             elif re.match(r'\b\w+\s[\d.]+\b', token):
                 keys.append(token)
-            elif settingLoad.key_mapping.get(token) is not None:
-                keys.append(settingLoad.key_mapping[token])
+            elif settingLoad.key_mapping[self.key_target].get(token) is not None:
+                keys.append(settingLoad.key_mapping[self.key_target][token])
             else:
                 keys.append(token) 
         return keys
@@ -306,7 +308,11 @@ class AutoClicker:
         :return: True if the event was handled successfully, False otherwise
         :rtype: bool
         """
-        key = settingLoad.key_mapping.get(settingLoad.byte_to_key.get(byte_data))
+        key = settingLoad.byte_to_key.get(byte_data)
+        if key == settingLoad.key_mapping.get("switch"):
+            key = "switch"
+        else:
+            key = settingLoad.key_mapping[self.key_target].get(key)
         if key is None or not self.window_handler.is_window_foreground():
             self.keyboard(byte_data)
             return False
@@ -436,13 +442,19 @@ class AutoClicker:
                         self.drag(value)
                 except:
                     return
+            elif key == 'switch':
+                self.key_index = (self.key_index + 1) % len(settingLoad.key_mapping.keys())
+                self.key_target = list(settingLoad.key_mapping.keys())[self.key_index]
+                if self.key_target == 'switch':
+                    self.key_index = (self.key_index + 1) % len(settingLoad.key_mapping.keys())
+                    self.key_target = list(settingLoad.key_mapping.keys())[self.key_index]
             elif settingLoad.key_to_byte.get(key) is not None: # 단순 매핑
                 self.keyboard(settingLoad.key_to_byte[key]) 
         elif settingLoad.load.get(key) is not None: # 매크로 속 매크로
             for text in self.decode(key):
                 self.macro(text)
-        elif settingLoad.key_mapping.get(settingLoad.byte_to_key.get(key)) is not None:
-            self.macro(settingLoad.key_mapping[settingLoad.byte_to_key[key]])
+        elif settingLoad.key_mapping[self.key_target].get(settingLoad.byte_to_key.get(key)) is not None:
+            self.macro(settingLoad.key_mapping[self.key_target][settingLoad.byte_to_key[key]])
 
     def __del__(self) -> None:
         """
@@ -472,6 +484,7 @@ class AutoClicker:
         if is_run:
             self.error = ""
             settingLoad.load_json()
+            self.key_target = list(settingLoad.key_mapping.keys())[self.key_index]
             try:
                 self.run()
             except Exception as e:

@@ -43,27 +43,37 @@ byte_to_key = {
 key_to_byte = {v: k for k, v in byte_to_key.items()}
 
 key_mapping = {
-    'SPACEBAR': [99,182,0],        # 초록버튼
-    '`':     [231, 231, 236],   # 흰 버튼
-    'Q':     [124, 203, 42],    # 휴식
-    'W':     [41, 122, 207],    # 트레이닝
-    'E':     [40, 191, 214],    # 스킬
-    'R':     [247, 154, 8],     # 외출
-    'F':     [145, 96, 239],    # 양호실
-    'T':     [235, 55, 55],     # 여신
-    'G':     [244, 69, 137],    # 레이스
-    'NUMPAD_0':   'MAC',        # 훈련 돌아보기 1
-    'A':    [225, 255, 178],    # 1번 선택지
-    'S':    [255, 247, 192],    # 2번 선택지
-    'D':    [255, 228, 239],    # 3번 선택지
-    '/':    (730, 1330),
-    "TAB": "drag (20, 1230) (788, 1230)", # 훈련 돌아보기 2
-    "1": "(130, 1310)",
-    "2": "(280, 1310)",
-    "3": "(430, 1310)",
-    "4": "(580, 1310)",
-    "5": "(630, 1310)",
-    "LEFT_SHIFT": (-1, -1)
+    "defualt": 
+    {
+        'SPACEBAR': [99,182,0],     # 초록버튼
+        '`':     [231, 231, 236],   # 흰 버튼
+        'Q':     [124, 203, 42],    # 휴식
+        'W':     [41, 122, 207],    # 트레이닝
+        'E':     [40, 191, 214],    # 스킬
+        'R':     [247, 154, 8],     # 외출
+        'F':     [145, 96, 239],    # 양호실
+        'T':     [235, 55, 55],     # 여신
+        'G':     [244, 69, 137],    # 레이스
+        'NUMPAD_0':   'MAC',        # 훈련 돌아보기 1
+        'A':    [225, 255, 178],    # 1번 선택지
+        'S':    [255, 247, 192],    # 2번 선택지
+        'D':    [255, 228, 239],    # 3번 선택지
+        '/':    (730, 1330),
+        "TAB": "drag (20, 1230) (788, 1230)", # 훈련 돌아보기 2
+        "1": "(130, 1310)",
+        "2": "(280, 1310)",
+        "3": "(430, 1310)",
+        "4": "(580, 1310)",
+        "5": "(630, 1310)",
+        "CAPS_LOCK": (-1, -1)
+    },
+    "scroll":
+    {
+        "1": "drag (430, 1000) (430, 500)",
+        "2": "drag (430, 500) (430, 1000)"
+    },
+    "chatting": {},
+    "switch": "F1"
 }
 
 screen_size = {
@@ -112,6 +122,36 @@ def convert_value(value_str : str):
     else:
         return value_str
 
+def upgrade_config(config: dict) -> dict:
+    """
+    Upgrades the configuration to the latest format if necessary.
+
+    :param config: The loaded configuration dictionary.
+    :return: The upgraded configuration dictionary.
+    """
+
+    # 버전 정보가 없는 경우 초기 버전으로 간주
+    current_version = config.get("version", "1.0")
+
+    # 이전 버전에서 최신 버전으로 변환
+    if current_version == "1.0":
+        # 버전 정보 업데이트
+        config["version"] = "2.0"
+        # key_mapping 구조 변경
+        if "key_mapping" in config and isinstance(config["key_mapping"], dict):
+            old_key_mapping = config["key_mapping"]
+            new_key_mapping = {"default": {}}
+            for key, value in old_key_mapping.items():
+                new_key_mapping["default"][key] = str(value)
+            new_key_mapping["switch"] = "F1"
+            config["key_mapping"] = new_key_mapping
+
+    with open('./config.json', 'w') as f:
+        json.dump(config, f, indent=4)
+
+    return config
+
+
 def load_json() -> None:
     """
     Loads settings from the config file and initializes global variables.
@@ -121,9 +161,19 @@ def load_json() -> None:
     global key_mapping, ratio, load, window_title, screen_size
 
     if not os.path.isfile('./config.json'):
+        default_config =\
+        {
+            "version": "2.0",
+            "window_title": window_title,
+            "support_key":support_key,
+            "type":text,
+            "key_mapping": {key:{name: str(val) for name, val in value.items()} for key, value in key_mapping.items() if isinstance(value, dict)},
+            "screen_size": screen_size,
+            "MAC": mac
+        }
+        default_config["key_mapping"]["switch"] = "F1"
         with open('./config.json', 'w') as f:
-            save = {key:str(value) for key, value in key_mapping.items()}
-            json.dump({"window_title":window_title, "support_key":support_key, "type":text, "key_mapping":save, "screen_size":screen_size, "MAC":mac}, f, indent=4)
+            json.dump(default_config, f, indent=4)
     else:
         try:
             with open('./config.json', 'rb') as f:
@@ -131,8 +181,15 @@ def load_json() -> None:
             with open('./config.json', 'r', encoding=chardet.detect(raw)["encoding"]) as f:
                 load = json.load(f)
 
-            if load.get('key_mapping') != None:
-                key_mapping = {key:convert_value(value) for key, value in load["key_mapping"].items()}
+            load = upgrade_config(load)
+
+            if "key_mapping" in load:
+                key_mapping = {}
+                for key, value in load["key_mapping"].items():
+                    if isinstance(value, str):
+                        key_mapping[key] = value
+                    else:
+                        key_mapping[key] = {name: convert_value(mappings) for name, mappings in value.items()}
             if load.get('screen_size') != None:
                 screen_size = load["screen_size"]
             if load.get('window_title') != None:
