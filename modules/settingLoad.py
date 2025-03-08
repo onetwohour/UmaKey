@@ -152,27 +152,27 @@ def load_json() -> None:
         default_config["key_mapping"]["switch"] = "F1"
         with open('./config.json', 'w') as f:
             json.dump(default_config, f, indent=4)
-    else:
-        try:
-            with open('./config.json', 'rb') as f:
-                raw = f.read()
-            with open('./config.json', 'r', encoding=chardet.detect(raw)["encoding"]) as f:
-                load = json.load(f)
 
-            load = upgrade_config(load)
+    try:
+        with open('./config.json', 'rb') as f:
+            raw = f.read()
+        with open('./config.json', 'r', encoding=chardet.detect(raw)["encoding"]) as f:
+            load = json.load(f)
 
-            if "key_mapping" in load:
-                key_mapping = {}
-                for key, value in load["key_mapping"].items():
-                    if isinstance(value, str):
-                        key_mapping[key] = value
-                    else:
-                        key_mapping[key] = {name: convert_value(mappings) for name, mappings in value.items()}
-            if load.get('screen_size') != None:
-                screen_size = load["screen_size"]
-            if load.get('window_title') != None:
-                window_title = load['window_title']
-        except json.JSONDecodeError as e:
-            raise json.JSONDecodeError("config.json has wrong syntax.", e.doc, e.pos)
+        load = upgrade_config(load)
+        
+        if "key_mapping" in load:
+            key_mapping = {}
+            for key, value in load["key_mapping"].items():
+                if isinstance(value, str):
+                    key_mapping[key] = value
+                else:
+                    key_mapping[key] = {name: convert_value(mappings) for name, mappings in value.items()}
+        if load.get('screen_size') is not None:
+            screen_size = load["screen_size"]
+        if load.get('window_title') is not None:
+            window_title = load['window_title']
+    except json.JSONDecodeError as e:
+        raise json.JSONDecodeError("config.json has wrong syntax.", e.doc, e.pos)
         
     ratio = screen_size['x'], screen_size['y']

@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import tkinter as tk
 from tkinter import messagebox
 import win32gui
@@ -22,6 +23,16 @@ user32.SetProcessDPIAware()
 kernel32 = windll.kernel32
 
 HOOKPROC = ctypes.WINFUNCTYPE(ctypes.wintypes.LPARAM, ctypes.c_int, ctypes.wintypes.WPARAM, ctypes.POINTER(ctypes.wintypes.LPARAM))
+
+@dataclass
+class KBDLLHOOKSTRUCT(ctypes.Structure):
+    _fields_ = [
+        ("vkCode", ctypes.wintypes.DWORD),
+        ("scanCode", ctypes.wintypes.DWORD),
+        ("flags", ctypes.wintypes.DWORD),
+        ("time", ctypes.wintypes.DWORD),
+        ("dwExtraInfo", ctypes.wintypes.ULONG)
+    ]
 
 class WindowHandler:
     def __init__(self) -> None:
@@ -67,8 +78,14 @@ class WindowHandler:
                 shell.SendKeys('%')
                 win32gui.SetForegroundWindow(self.hwnd)
             return True
-        except:
+        except Exception:
             return False
+        
+    def get_window_position(self):
+        left, top, right, bottom = win32gui.GetClientRect(self.hwnd)
+        width, height = right - left, bottom - top
+        left, top = map(sum, zip((left, top), win32gui.ClientToScreen(self.hwnd, (0, 0))))
+        return left, top, left + width, top + height
 
 class ColorFinder:
     def __init__(self, hwnd=0) -> None:
@@ -103,7 +120,7 @@ class ColorFinder:
 
     def find_color(self, target_color: list[int, int, int], tolerance: int) -> tuple[None, None] | tuple[int, int] | tuple[bool, bool]:
         image, margin_h, margin_w = self.capture_screen()
-        left, top, _, _ = win32gui.GetWindowRect(self.hwnd)
+        left, top = win32gui.ClientToScreen(self.hwnd, (0, 0))
         left += margin_w
         top += margin_h
 
@@ -142,12 +159,15 @@ class KeyboardHook:
     def _keyboard_proc(self, nCode, wParam, lParam):
         if nCode >= 0:
             if wParam == self.WM_KEYDOWN:
-                vk_code = ctypes.cast(lParam, ctypes.POINTER(ctypes.wintypes.DWORD)).contents.value
+                key_info = ctypes.cast(lParam, ctypes.POINTER(KBDLLHOOKSTRUCT)).contents
+                vk_code = key_info.vkCode
+                extra_info = key_info.dwExtraInfo
                 
-                if self.callback and not self.lock:
-                    self.lock = True
-                    self.task = Thread(target=self.callback, args=(vk_code,), daemon=True)
-                    self.task.start()
+                if self.callback and extra_info == 0:
+                    if not self.lock:
+                        self.lock = True
+                        self.task = Thread(target=self.callback, args=(vk_code,), daemon=True)
+                        self.task.start()
                     return 1
         
         return user32.CallNextHookEx(self.hooked, nCode, wParam, lParam)
@@ -269,7 +289,7 @@ class AutoClicker:
             time.sleep(0.1)
         
         while self.is_run() and time.time() - delay < timeout and win32gui.IsWindow(self.window_handler.hwnd) and self.error == "":
-            left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
+            left, top, right, bottom = self.window_handler.get_window_position()
             if win32gui.IsIconic(self.window_handler.hwnd):
                 timeout += 0.1
             elif abs(((bottom - top) / (right - left)) / (settingLoad.ratio[1] / settingLoad.ratio[0]) - 1) > 0.1:
@@ -327,14 +347,14 @@ class AutoClicker:
         control_pressed = win32api.GetKeyState(win32con.VK_CONTROL) < 0
         shift_pressed = win32api.GetKeyState(win32con.VK_SHIFT) < 0
         if control_pressed:
-            win32api.keybd_event(win32con.VK_CONTROL, 0, win32con.KEYEVENTF_EXTENDEDKEY, 0)
+            win32api.keybd_event(win32con.VK_CONTROL, 0, win32con.KEYEVENTF_EXTENDEDKEY, 3000)
         if shift_pressed:
-            win32api.keybd_event(win32con.VK_SHIFT, 0, win32con.KEYEVENTF_EXTENDEDKEY, 0)
-        win32api.keybd_event(code, 0, 0, 0)
+            win32api.keybd_event(win32con.VK_SHIFT, 0, win32con.KEYEVENTF_EXTENDEDKEY, 3000)
+        win32api.keybd_event(code, 0, 0, 3000)
         if control_pressed:
-            win32api.keybd_event(win32con.VK_CONTROL, 0, win32con.KEYEVENTF_EXTENDEDKEY | win32con.KEYEVENTF_KEYUP, 0)
+            win32api.keybd_event(win32con.VK_CONTROL, 0, win32con.KEYEVENTF_EXTENDEDKEY | win32con.KEYEVENTF_KEYUP, 3000)
         if shift_pressed:
-            win32api.keybd_event(win32con.VK_SHIFT, 0, win32con.KEYEVENTF_EXTENDEDKEY | win32con.KEYEVENTF_KEYUP, 0)
+            win32api.keybd_event(win32con.VK_SHIFT, 0, win32con.KEYEVENTF_EXTENDEDKEY | win32con.KEYEVENTF_KEYUP, 3000)
 
     def click(self, x : int, y : int) -> None:
         ctypes.windll.user32.SetCursorPos(x, y)
@@ -343,7 +363,7 @@ class AutoClicker:
 
     def drag(self, pos : str) -> None:
         (x1, y1), (x2, y2) = (tuple(map(int, match)) for match in re.findall(r'\((\w+), (\w+)\)', pos))
-        left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
+        left, top, right, bottom = self.window_handler.get_window_position()
         
         if (x1, y1) == (-1, -1):
             x1, y1 = win32api.GetCursorPos()
@@ -391,7 +411,7 @@ class AutoClicker:
                 if cx or cy:
                     self.click(cx, cy)
         elif isinstance(key, tuple): # 좌표
-            left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
+            left, top, right, bottom = self.window_handler.get_window_position()
             if key == (-1, -1):
                 x, y = win32api.GetCursorPos()
                 if not (left + 20 <= x <= right - 20 and top + 60 <= y <= bottom - 20):
@@ -409,7 +429,7 @@ class AutoClicker:
                         time.sleep(float(value))
                     elif command == 'drag':
                         self.drag(value)
-                except:
+                except Exception:
                     return
             elif key == 'switch': # 프리셋 변환
                 self.key_mapping_index = (self.key_mapping_index + 1) % len(settingLoad.key_mapping.keys())
@@ -432,7 +452,7 @@ class AutoClicker:
         try:
             self.__state = 0
             self.keyboard_hook.stop()
-        except:
+        except Exception:
             pass
 
     def toggle(self) -> None:

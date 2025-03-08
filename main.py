@@ -1,7 +1,8 @@
 from pystray import MenuItem as item
 import pystray
 from PIL import Image
-import os, time
+import os
+import time
 from threading import Thread
 import ctypes
 from ctypes import windll, byref

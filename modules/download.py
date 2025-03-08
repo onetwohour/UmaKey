@@ -2,7 +2,8 @@ import zipfile
 from io import BytesIO
 from tempfile import mkdtemp
 import urllib.request
-import sys, os
+import sys
+import os
 import hashlib
 import shutil
 from ctypes import windll
@@ -14,7 +15,7 @@ try:
     zip_url = args[1]
     update_folder = args[2]
     exclude_files = tuple(file for file in args[3:])
-except:
+except Exception:
     zip_url = "https://github.com/onetwohour/UmaKey/releases/latest/download/Umakey.zip"
     update_folder = os.path.join(os.getcwd(), "_internal", "update")
     exclude_files = ('config.json',)
@@ -54,7 +55,7 @@ def update() -> None:
                 if not os.path.exists(temp_dir_path):
                     try:
                         shutil.rmtree(dir_path)
-                    except:
+                    except Exception:
                         pass
 
         for root, dirs, files in os.walk(temp_dir):

@@ -16,6 +16,12 @@ class WindowHandler:
     def update(self) -> None:
         self.hwnd = win32gui.FindWindow(None, settingLoad.window_title)
 
+    def get_window_position(self):
+        left, top, right, bottom = win32gui.GetClientRect(self.hwnd)
+        width, height = right - left, bottom - top
+        left, top = map(sum, zip((left, top), win32gui.ClientToScreen(self.hwnd, (0, 0))))
+        return left, top, left + width, top + height
+    
 class Window():
     def __init__(self) -> None:
         self.root = None
@@ -51,7 +57,7 @@ class Window():
         try:
             self.x = self.root.winfo_pointerx()
             self.y = self.root.winfo_pointery()
-        except:
+        except Exception:
             self.x, self.y = 0, 0
         
         if self.root is not None and self.run:
@@ -61,7 +67,7 @@ class Window():
     def update(self) -> None:
         def work():
             try:
-                left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
+                left, top, right, bottom = self.window_handler.get_window_position()
                 game_window = right-left, bottom-top
                 px, py = self.x - left, self.y - top
                 px, py = max(min(px, game_window[0]), 0), max(min(py, game_window[1]), 0)
@@ -72,7 +78,7 @@ class Window():
                 text = f"{game_window[0]}x{game_window[1]}\n({px}, {py})\n{[*color]}"
                 if self.text is not None and self.run:
                     self.text.config(text=text)
-            except:
+            except Exception:
                 pass
         
         work()
