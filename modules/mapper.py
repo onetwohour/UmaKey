@@ -1,54 +1,42 @@
+import tkinter as tk
+from tkinter import messagebox
 import win32gui
 import win32con
 import win32api
+import win32ui
 import win32com.client
 import pythoncom
 import numpy as np
-import subprocess
 import time
-import os
 import re
 import psutil
 import win32process
+import cv2
 from threading import Thread
 from modules import settingLoad
 import ctypes
-from ctypes import windll, cdll, c_wchar_p
+from ctypes import windll
+import ctypes.wintypes
 user32 = windll.user32
 user32.SetProcessDPIAware()
+kernel32 = windll.kernel32
 
-is_run = False
+HOOKPROC = ctypes.WINFUNCTYPE(ctypes.wintypes.LPARAM, ctypes.c_int, ctypes.wintypes.WPARAM, ctypes.POINTER(ctypes.wintypes.LPARAM))
 
 class WindowHandler:
     def __init__(self) -> None:
         self.hwnd = 0
 
     def is_window_foreground(self) -> bool:
-        """
-        Check if the window is in the foreground.
-
-        :return: True if the window is in the foreground, False otherwise
-        """
         return self.hwnd == win32gui.GetForegroundWindow()
 
     def find_process_by_name(self, process_name : str) -> None|int:
-        """
-        Find a process by its name.
-
-        :param process_name: The name of the process to find
-        :return: The PID of the process if found, None otherwise
-        """
         for proc in psutil.process_iter(['pid', 'name']):
             if proc.info['name'] == process_name:
                 return proc.info['pid']
         return None
 
     def update(self) -> None:
-        """
-        Update the window handler.
-
-        :return: None
-        """
         self.hwnd = win32gui.FindWindow(None, settingLoad.window_title)
         if not self.hwnd:
             return
@@ -68,13 +56,7 @@ class WindowHandler:
                     return
         win32gui.EnumWindows(callback, None)
 
-    # 화면 활성화 시 오류 발생 방지
-    def activate_widnow(self) -> bool:
-        """
-        Activate the window.
-
-        :return: True if the window is successfully activated, False otherwise
-        """
+    def activate_window(self) -> bool:
         try:
             time.sleep(0.25)
             if win32gui.IsIconic(self.hwnd):
@@ -89,152 +71,205 @@ class WindowHandler:
             return False
 
 class ColorFinder:
-    def __init__(self, hwnd = 0, timer = 0) -> None:
+    def __init__(self, hwnd=0) -> None:
         self.hwnd = hwnd
-        self.timer = timer
-        self.frequency = 0.2
-        self.capture = ctypes.CDLL("./_internal/WindowCapture.dll")
-        self.getpos = ctypes.CDLL("./_internal/findColor.dll")
 
-        self.capture.CaptureAndCropScreen.argtypes = (ctypes.POINTER(ctypes.POINTER(ctypes.c_ubyte)), ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int)
-        self.capture.CaptureAndCropScreen.restype = None
+    def capture_screen(self):
+        left, top, right, bottom = win32gui.GetClientRect(self.hwnd)
+        width, height = right - left, bottom - top
+        max_height = height // 5
 
-        self.capture.FreeImageData.argtypes = (ctypes.POINTER(ctypes.c_ubyte),)
-        self.capture.FreeImageData.restype = None
+        hwindc = win32gui.GetWindowDC(self.hwnd)
+        srcdc = win32ui.CreateDCFromHandle(hwindc)
+        memdc = srcdc.CreateCompatibleDC()
+        bitmap = win32ui.CreateBitmap()
+        bitmap.CreateCompatibleBitmap(srcdc, width, height)
+        memdc.SelectObject(bitmap)
+        user32.PrintWindow(self.hwnd, memdc.GetSafeHdc(), 3)
 
-        self.getpos.findTarget.argtypes = (ctypes.POINTER(ctypes.c_ubyte), ctypes.c_int, ctypes.c_int, ctypes.POINTER(ctypes.c_int), ctypes.c_int, 
-                                           ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_bool))
-        self.getpos.findTarget.restype = None
+        bmpinfo = bitmap.GetInfo()
+        bmpstr = bitmap.GetBitmapBits(True)
+        img = np.frombuffer(bmpstr, dtype=np.uint8)
+        img.shape = (bmpinfo['bmHeight'], bmpinfo['bmWidth'], 4)
+        img = cv2.cvtColor(img, cv2.COLOR_BGRA2RGB)
+        cropped_img = img[max_height:, 20:width-20]
 
+        srcdc.DeleteDC()
+        memdc.DeleteDC()
+        win32gui.ReleaseDC(self.hwnd, hwindc)
+        win32gui.DeleteObject(bitmap.GetHandle())
 
-    def find_color(self, target_color : list[int, int, int], tolerance : float) -> tuple[None, None]|tuple[int, int]|tuple[bool, bool]:
-        """
-        Find a color on the screen.
+        return cropped_img, max_height, 20
 
-        :param target_color: The target color to find
-        :type target_color: list[int, int, int]
-        :param tolerance: The tolerance level for color comparison
-        :type tolerance: float
-        :return: The coordinates of the found color if successful, or False otherwise
-        :rtype: tuple[None, None] | tuple[int, int] | tuple[bool, bool]
-        """
+    def find_color(self, target_color: list[int, int, int], tolerance: int) -> tuple[None, None] | tuple[int, int] | tuple[bool, bool]:
+        image, margin_h, margin_w = self.capture_screen()
+        left, top, _, _ = win32gui.GetWindowRect(self.hwnd)
+        left += margin_w
+        top += margin_h
 
-        if time.time() - self.timer < self.frequency:
-            return None, None
-        target_color = np.array(target_color[::-1])
-        left, top, right, bottom = win32gui.GetWindowRect(self.hwnd)
-        max_height = (bottom - top) // 5
-        width = right - left - 40
-        height = bottom - top - max_height - 20
-        margin_width = width % 4
-        width -= margin_width
-        left += margin_width // 2
+        lower_bound = np.array([max(0, c - tolerance) for c in target_color], dtype=np.uint8)
+        upper_bound = np.array([min(255, c + tolerance) for c in target_color], dtype=np.uint8)
 
-        image_data = ctypes.POINTER(ctypes.c_ubyte)()
-        self.capture.CaptureAndCropScreen(ctypes.byref(image_data), left + 20, top + max_height, width, height)
+        mask = cv2.inRange(image, lower_bound, upper_bound)
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-        success = ctypes.c_bool(False)
-        cx = ctypes.c_int()
-        cy = ctypes.c_int()
-
-        self.getpos.findTarget(image_data, width, height, target_color.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
-                                tolerance, ctypes.byref(cx), ctypes.byref(cy), ctypes.byref(success))
-
-        self.capture.FreeImageData(image_data)
-
-        if success.value:
-            return cx.value + left + 20, cy.value + top + max_height
-        else:
+        if not contours:
             return False, False
+
+        largest_contour = max(contours, key=cv2.contourArea)
+        M = cv2.moments(largest_contour)
+        if M["m00"] == 0:
+            return False, False
+
+        cx = int(M["m10"] / M["m00"]) + left
+        cy = int(M["m01"] / M["m00"]) + top
+
+        return cx, cy
+
+class KeyboardHook:
+    def __init__(self, callback=None):
+        self.hooked = None
+        self.hook_thread = None
+        self.callback = callback
+        self.running = False
+        self.WH_KEYBOARD_LL = 13
+        self.WM_KEYDOWN = 0x0100
+        self.WM_KEYUP = 0x0101
+        self.HOOKPROC = HOOKPROC(self._keyboard_proc)
+        self.lock = False
+        self.task = None
+
+    def _keyboard_proc(self, nCode, wParam, lParam):
+        if nCode >= 0:
+            if wParam == self.WM_KEYDOWN:
+                vk_code = ctypes.cast(lParam, ctypes.POINTER(ctypes.wintypes.DWORD)).contents.value
+                
+                if self.callback and not self.lock:
+                    self.lock = True
+                    self.task = Thread(target=self.callback, args=(vk_code,), daemon=True)
+                    self.task.start()
+                    return 1
         
+        return user32.CallNextHookEx(self.hooked, nCode, wParam, lParam)
+
+    def start(self):
+        if self.hooked:
+            return
+
+        self.running = True
+        self.hook_thread = Thread(target=self._hook_loop, daemon=True)
+        self.hook_thread.start()
+
+    def _hook_loop(self):
+        hMod = None
+        
+        self.hooked = user32.SetWindowsHookExW(
+            self.WH_KEYBOARD_LL, self.HOOKPROC,
+            hMod, 0
+        )
+
+        if not self.hooked:
+            print(f"SetWindowsHookExW 실패: {ctypes.GetLastError()}")
+            return
+        
+        self._message_loop()
+
+    def _message_loop(self):
+        msg = ctypes.wintypes.MSG()
+
+        while self.running:
+            if user32.PeekMessageW(ctypes.byref(msg), 0, 0, 0, 1):
+                user32.TranslateMessage(ctypes.byref(msg))
+                user32.DispatchMessageW(ctypes.byref(msg))
+
+            time.sleep(0.01)
+
+    def stop(self):
+        if self.hooked:
+            user32.UnhookWindowsHookEx(self.hooked)
+            self.hooked = None
+        self.running = False
+
+    def register_callback(self, func=None):
+        def wrapper(*args):
+            func(*args)
+            self.lock = False
+        self.callback = wrapper if func is not None else func
+
 class AutoClicker:
     def __init__(self, tolerance : float = 10) -> None:
         self.window_handler = None
         self.color_finder = None
         self.tolerance = tolerance
-        self.cpp_process = None
-        self.timer = 0
-        self.runner = 0
-        self.error = ""
-        self.key_index = 0
-        self.key_target = None
+        self.key_mapping_index = 0
+        self.key_mapping = None
+        self.__state = 0
+        self.thread = None
+        self.keyboard_hook = KeyboardHook()
+        self.error = None
 
-    # 키보드 입력 감지 프로그램
-    def open_exe(self) -> None:
-        """
-        Opens an external program to detect keyboard inputs.
-        """
-        self.cpp_process = subprocess.Popen("./_internal/input.exe", stdout=subprocess.PIPE, bufsize=1, universal_newlines=True, shell=False)
-        Thread(target=self.check_screen, daemon=True).start()
+    def is_run(self):
+        return self.__state > 0
 
     def run(self) -> None:
-        """
-        Runs the AutoClicker and detects keyboard events.
-        """
-        if not is_run or self.runner > 0:
+        if self.is_run():
             return
-        self.timer = time.time()
-        self.runner += 1
-
+        self.__state = 1
+        
         if self.window_handler is None:
             self.window_handler = WindowHandler()
 
         if self.color_finder is None:
             self.color_finder = ColorFinder()
 
-        # C++ 프로그램 실행
-        if self.cpp_process is None:
-            if not os.path.isfile('./_internal/input.exe'):
-                raise FileNotFoundError(f"File not exist : {os.path.join(os.getcwd(), '_internal', 'input.exe')}")
-            self.open_exe()
+        self.keyboard_hook.start()
 
-        # C++ 프로그램의 출력을 읽어 키보드 입력 추출
-        while is_run:
+        self.thread = Thread(target=self.monitor)
+        self.thread.run()
+
+    def disable(self):
+        self.keyboard_hook.register_callback(None)
+
+    def enable(self):
+        self.keyboard_hook.register_callback(self.on_keyboard_event)
+
+    def monitor(self):
+        while self.is_run():
             if not win32gui.IsWindow(self.window_handler.hwnd):
+                self.disable()
+                time.sleep(0.5)
                 self.window_handler.update()
-                if not self.window_handler.hwnd:
-                    self.destroy()
-                    time.sleep(0.5)
-                    continue
-                elif not self.window_handler.activate_widnow():
+                continue
+
+            if not self.window_handler.hwnd:
+                self.disable()
+                time.sleep(0.5)
+                continue
+
+            if self.__state == 1:
+                if not self.window_handler.activate_window():
+                    self.disable()
                     continue
                 Thread(target=self.screen_size_detect, daemon=True).start()
+                self.enable()
+                self.__state = 2
 
-            byte_data = ""
-            
-            # 데이터를 읽어옴
-            if self.cpp_process != None and self.window_handler.is_window_foreground():
-                byte_data = self.cpp_process.stdout.readline().strip()
-            if not byte_data:
-                self.destroy()
-                if is_run and self.window_handler.is_window_foreground():
-                    self.open_exe()
-                time.sleep(0.1)
-                continue
-            elif byte_data == "UmaKeyNotFound":
-                raise ProcessLookupError(byte_data)
-            
-            t, text = byte_data.split(' ')
-            if int(time.time() * 1000) - int(t) > 100:
-                continue
-            if self.on_keyboard_event(int(text)):
-                time.sleep(0.1)
-        self.runner -= 1
-
-    # 처음 실행 시, 게임 창 비율을 확인
+            elif self.__state == 2:
+                if not self.window_handler.is_window_foreground():
+                    self.disable()
+                    continue
+                else:
+                    self.enable()
+                time.sleep(0.5)
+                
     def screen_size_detect(self) -> None:
-        """
-        Detects the size of the game window and verifies the aspect ratio.
-        """
         delay = time.time()
         timeout = 15
-        # 처음 실행 시 화면 크기가 요동치므로 무시
-        while is_run and time.time() - delay < 10:
+        while self.is_run() and time.time() - delay < 10:
             time.sleep(0.1)
-        # 5초간 화면 비율 검사
-        while is_run and time.time() - delay < timeout and win32gui.IsWindow(self.window_handler.hwnd) and self.error == "":
+        
+        while self.is_run() and time.time() - delay < timeout and win32gui.IsWindow(self.window_handler.hwnd) and self.error == "":
             left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
-            # 최소화시 화면 크기가 달라짐
             if win32gui.IsIconic(self.window_handler.hwnd):
                 timeout += 0.1
             elif abs(((bottom - top) / (right - left)) / (settingLoad.ratio[1] / settingLoad.ratio[0]) - 1) > 0.1:
@@ -243,41 +278,12 @@ class AutoClicker:
             time.sleep(0.1)
 
     def show_warning_dialog(self, message : str) -> None:
-        """
-        Shows a warning dialog box with the specified message.
-
-        :param message: The message to display in the warning dialog
-        :type message: str
-        """
-        if not os.path.isfile('./_internal/warning.dll'):
-            raise FileNotFoundError(f"File not exist : {os.path.join(os.getcwd(), '_internal', 'warning.dll')}")
-        dll = cdll.LoadLibrary(os.path.join(os.getcwd(), '_internal', 'warning.dll')).show_warning_dialog
-        dll.argtypes = [c_wchar_p]
-        dll.restype = None
-        dll(message)
+        root = tk.Tk()
+        root.withdraw()
+        messagebox.showwarning("Warning", message)
+        root.destroy()
     
-    # 게임 창이 꺼져있다면, 키보드 입력 감지 종료
-    def check_screen(self) -> None:
-        """
-        Checks if the game window is still active and terminates keyboard event detection if not.
-        """
-        while is_run and self.cpp_process is not None and self.error == "":
-            if not self.window_handler.is_window_foreground():
-                self.destroy()
-                break
-            time.sleep(0.5)
-    
-    # 매크로 해석
-    # 매크로 문자열을 분해하여 적절한 명령으로 변환
     def decode(self, text : str) -> list:
-        """
-        Decodes a macro string into a list of appropriate commands.
-
-        :param text: The macro string to decode
-        :type text: str
-        :return: The list of decoded commands
-        :rtype: list
-        """
         keys = []
         tokens = re.findall(r'\[.*?\]|\(.*?\)|\d+|\b\w+\s[\d.]+\b|\w+', settingLoad.load[text])
         for token in tokens:
@@ -292,31 +298,22 @@ class AutoClicker:
                 keys.append(settingLoad.key_to_byte[token])
             elif re.match(r'\b\w+\s[\d.]+\b', token):
                 keys.append(token)
-            elif settingLoad.key_mapping[self.key_target].get(token) is not None:
-                keys.append(settingLoad.key_mapping[self.key_target][token])
+            elif settingLoad.key_mapping[self.key_mapping].get(token) is not None:
+                keys.append(settingLoad.key_mapping[self.key_mapping][token])
             else:
                 keys.append(token) 
         return keys
 
-    # 키보드 입력시 
-    def on_keyboard_event(self, byte_data : str) -> bool:
-        """
-        Handles keyboard events received from the external program.
-
-        :param byte_data: The keyboard event data received
-        :type byte_data: str
-        :return: True if the event was handled successfully, False otherwise
-        :rtype: bool
-        """
-        key = settingLoad.byte_to_key.get(byte_data)
+    def on_keyboard_event(self, vk: int) -> bool:
+        key = settingLoad.byte_to_key.get(vk)
         if key == settingLoad.key_mapping.get("switch"):
             key = "switch"
         else:
-            key = settingLoad.key_mapping[self.key_target].get(key)
+            key = settingLoad.key_mapping[self.key_mapping].get(key)
         if key is None or not self.window_handler.is_window_foreground():
-            self.keyboard(byte_data)
+            self.press_key(vk)
             return False
-        if type(key) == str and settingLoad.load.get(key) is not None:
+        if isinstance(key, str) and settingLoad.load.get(key) is not None:
             keys = self.decode(key)  
         else:
             keys = (key,)
@@ -325,45 +322,25 @@ class AutoClicker:
             self.macro(key)
         return True 
             
-    def keyboard(self, code : int) -> None:
-        """
-        Simulates a keyboard input based on the provided code.
-
-        :param code: The code of the keyboard input to simulate
-        :type code: int
-        """
+    def press_key(self, code : int) -> None:
         control_pressed = win32api.GetKeyState(win32con.VK_CONTROL) < 0
         shift_pressed = win32api.GetKeyState(win32con.VK_SHIFT) < 0
         if control_pressed:
-            win32api.keybd_event(win32con.VK_CONTROL, 0, win32con.KEYEVENTF_EXTENDEDKEY, 3000)
+            win32api.keybd_event(win32con.VK_CONTROL, 0, win32con.KEYEVENTF_EXTENDEDKEY, 0)
         if shift_pressed:
-            win32api.keybd_event(win32con.VK_SHIFT, 0, win32con.KEYEVENTF_EXTENDEDKEY, 3000)
-        win32api.keybd_event(code, 0, 0, 3000)
+            win32api.keybd_event(win32con.VK_SHIFT, 0, win32con.KEYEVENTF_EXTENDEDKEY, 0)
+        win32api.keybd_event(code, 0, 0, 0)
         if control_pressed:
-            win32api.keybd_event(win32con.VK_CONTROL, 0, win32con.KEYEVENTF_EXTENDEDKEY | win32con.KEYEVENTF_KEYUP, 3000)
+            win32api.keybd_event(win32con.VK_CONTROL, 0, win32con.KEYEVENTF_EXTENDEDKEY | win32con.KEYEVENTF_KEYUP, 0)
         if shift_pressed:
-            win32api.keybd_event(win32con.VK_SHIFT, 0, win32con.KEYEVENTF_EXTENDEDKEY | win32con.KEYEVENTF_KEYUP, 3000)
+            win32api.keybd_event(win32con.VK_SHIFT, 0, win32con.KEYEVENTF_EXTENDEDKEY | win32con.KEYEVENTF_KEYUP, 0)
 
     def click(self, x : int, y : int) -> None:
-        """
-        Simulates a mouse click at the specified coordinates.
-
-        :param x: The x-coordinate of the click
-        :type x: int
-        :param y: The y-coordinate of the click
-        :type y: int
-        """
         ctypes.windll.user32.SetCursorPos(x, y)
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
 
     def drag(self, pos : str) -> None:
-        """
-        Simulates dragging the mouse from one position to another.
-
-        :param pos: The positions to drag the mouse between
-        :type pos: str
-        """
         (x1, y1), (x2, y2) = (tuple(map(int, match)) for match in re.findall(r'\((\w+), (\w+)\)', pos))
         left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
         
@@ -405,22 +382,13 @@ class AutoClicker:
         ctypes.windll.user32.SetCursorPos(x2, y2)
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
 
-    # 적절한 기능 수행
     def macro(self, key) -> None:
-        """
-        Executes a macro command.
-
-        :param key: The macro command to execute
-        :type key: str
-        """
         if isinstance(key, list): # 색깔
             self.color_finder.hwnd = self.window_handler.hwnd
-            self.color_finder.timer = self.timer
             cx, cy = self.color_finder.find_color(key, self.tolerance)
             if cx is not None and cy is not None:
                 if cx or cy:
                     self.click(cx, cy)
-                self.timer = time.time()
         elif isinstance(key, tuple): # 좌표
             left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
             if key == (-1, -1):
@@ -442,62 +410,44 @@ class AutoClicker:
                         self.drag(value)
                 except:
                     return
-            elif key == 'switch':
-                self.key_index = (self.key_index + 1) % len(settingLoad.key_mapping.keys())
-                self.key_target = list(settingLoad.key_mapping.keys())[self.key_index]
-                if self.key_target == 'switch':
-                    self.key_index = (self.key_index + 1) % len(settingLoad.key_mapping.keys())
-                    self.key_target = list(settingLoad.key_mapping.keys())[self.key_index]
+            elif key == 'switch': # 프리셋 변환
+                self.key_mapping_index = (self.key_mapping_index + 1) % len(settingLoad.key_mapping.keys())
+                self.key_mapping = list(settingLoad.key_mapping.keys())[self.key_mapping_index]
+                if self.key_mapping == 'switch':
+                    self.key_mapping_index = (self.key_mapping_index + 1) % len(settingLoad.key_mapping.keys())
+                    self.key_mapping = list(settingLoad.key_mapping.keys())[self.key_mapping_index]
             elif settingLoad.key_to_byte.get(key) is not None: # 단순 매핑
                 self.keyboard(settingLoad.key_to_byte[key]) 
-        elif settingLoad.load.get(key) is not None: # 매크로 속 매크로
+        elif settingLoad.load.get(key) is not None: # 이중 매크로
             for text in self.decode(key):
                 self.macro(text)
-        elif settingLoad.key_mapping[self.key_target].get(settingLoad.byte_to_key.get(key)) is not None:
-            self.macro(settingLoad.key_mapping[self.key_target][settingLoad.byte_to_key[key]])
+        elif settingLoad.key_mapping[self.key_mapping].get(settingLoad.byte_to_key.get(key)) is not None:
+            self.macro(settingLoad.key_mapping[self.key_mapping][settingLoad.byte_to_key[key]])
 
     def __del__(self) -> None:
-        """
-        Cleans up resources and terminates the AutoClicker.
-        """
-        global is_run
-        is_run = False
         self.destroy()
 
     def destroy(self) -> None:
-        """
-        Terminates the AutoClicker and releases associated resources.
-        """
         try:
-            if self.cpp_process != None:
-                self.cpp_process.terminate()
+            self.__state = 0
+            self.keyboard_hook.stop()
         except:
             pass
-        self.cpp_process = None
 
     def toggle(self) -> None:
-        """
-        Toggles the AutoClicker on or off.
-        """
-        global is_run
-        is_run = not is_run
-        if is_run:
-            self.error = ""
-            settingLoad.load_json()
-            self.key_target = list(settingLoad.key_mapping.keys())[self.key_index]
+        if not self.is_run():
             try:
+                settingLoad.load_json()
+                self.key_mapping = list(settingLoad.key_mapping.keys())[self.key_mapping_index]
                 self.run()
             except Exception as e:
+                self.__state = -1
                 self.error = e
-                self.runner -= 1
-                print(e)
         else:
             self.destroy()
-            try:
-                del self.window_handler, self.color_finder
-            except:
-                pass
-            self.window_handler = self.color_finder = None
+
+    def error_occurred(self):
+        return self.__state == -1
 
 if __name__ == '__main__':
     auto_clicker = AutoClicker()

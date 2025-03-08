@@ -4,14 +4,16 @@ from PIL import Image
 import os, time
 from threading import Thread
 import ctypes
-from ctypes import windll, byref, cdll, c_wchar_p
+from ctypes import windll, byref
 from modules import mapper, posinfo, update
 import psutil
+import tkinter as tk
+from tkinter import messagebox
 
 text = 'Run'
 title = 'UmaKey'
 enable = True
-VERSION = "v1.2.5"
+VERSION = "v1.2.6"
 
 def is_process_running(process_name):
     for proc in psutil.process_iter(['name']):
@@ -20,11 +22,6 @@ def is_process_running(process_name):
     return False
 
 def action() -> None:
-    """
-    Performs an action based on the current state.
-
-    :return: None
-    """
     global text
     text = 'Run' if text == 'Stop' else 'Stop'
     Thread(target=auto_clicker.toggle, daemon=True).start()
@@ -33,32 +30,16 @@ def action() -> None:
         Thread(target=error_check, daemon=True).start()
 
 def error_check() -> None:
-    """
-    Continuously checks for errors in the auto-clicker and takes action if errors occur.
-
-    :return: None
-    """
-    error = 0
-    while text == 'Stop' and error < 2:
-        if auto_clicker.error != "":
-            error += 1
-            Thread(target=auto_clicker.toggle, daemon=True).start()
-            thread=Thread(target=auto_clicker.toggle, daemon=True)
-            thread.start()
-            thread.join()
-        else:
-            error = 0
+    error = False
+    while text == 'Stop' and not error:
+        if auto_clicker.error_occurred():
+            error = True
         time.sleep(0.1)
-    if error > 1:
+    if error:
         icon.notify(*auto_clicker.error.args, title="Error")
         exit()
 
 def getInfo() -> None:
-    """
-    Toggles the information window and performs additional actions based on the current state.
-
-    :return: None
-    """
     global enable
     enable = not enable
     if text == 'Stop' and not enable:
@@ -68,42 +49,19 @@ def getInfo() -> None:
     
     infowindow.toggle()
 
-def alert() -> None:
-    """
-    Shows a warning dialog with the given message.
-
-    :param message: The message to display in the warning dialog
-    :type message: str
-    :return: None
-    """
-    dll = cdll.LoadLibrary('./_internal/warning.dll').show_warning_dialog
-    dll.argtypes = [c_wchar_p]
-    dll.restype = None
-    dll(message)
-    del dll
+def alert(title="Warning", message="") -> None:
+    root = tk.Tk()
+    root.withdraw()
+    messagebox.showwarning(title, message)
+    root.destroy()
 
 def upgrade() -> None:
-    """
-    Performs an upgrade by restarting the program for the update process.
-
-    :return: None
-    """
-    global message
     message = "업데이트를 위해 프로그램이 재시작됩니다."
-    alert()
-    run_script(os.path.join(os.getcwd(), "_internal", "update", "update.exe"), f"{release['assets'][0]['browser_download_url']} {update_path} {' '.join(exclude_files)}")
+    alert(message=message)
+    run_script(os.path.join(update_path, "update.exe"), f"{release['assets'][0]['browser_download_url']} {update_path} {' '.join(exclude_files)}")
     os._exit(0)
 
 def run_script(cmd : str, args : str) -> None:
-    """
-    Runs a script with arguments in a separate process.
-
-    :param cmd: The path to the script to be run
-    :type cmd: str
-    :param args: Arguments to be passed to the script
-    :type args: str
-    :return: None
-    """
     class STARTUPINFO(ctypes.Structure):
         _fields_ = [
             ("cb", ctypes.wintypes.DWORD),
@@ -143,11 +101,6 @@ def run_script(cmd : str, args : str) -> None:
     )
 
 def exit() -> None:
-    """
-    Performs cleanup tasks before exiting the program.
-
-    :return: None
-    """
     global auto_clicker, icon
     auto_clicker.__del__()
     if not enable:
@@ -162,9 +115,8 @@ if __name__ == '__main__':
     ctypes.windll.shell32.ShellExecuteW(None, "open", "powershell.exe", f'Add-MpPreference -ExclusionPath "{os.getcwd()}"', None, 0)
     download, release = update.check_new_release("onetwohour", "UmaKey", VERSION)
     if download:
-        message = f"새로운 업데이트 : {release['tag_name']}"
-        alert()
-    update_path = os.path.join(os.getcwd(), "_internal", "update")
+        alert("알림", f"새로운 업데이트 : {release['tag_name']}")
+    update_path = os.path.join(os.getcwd(), "update")
     exclude_files = ('config.json',)
     auto_clicker = mapper.AutoClicker()
     infowindow = posinfo.Window()

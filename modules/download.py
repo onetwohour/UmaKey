@@ -5,7 +5,9 @@ import urllib.request
 import sys, os
 import hashlib
 import shutil
-from ctypes import cdll, c_wchar_p, windll
+from ctypes import windll
+import tkinter as tk
+from tkinter import messagebox
 
 args = sys.argv
 try:
@@ -18,27 +20,10 @@ except:
     exclude_files = ('config.json',)
 
 def download_file(url : str, dest_filename : str) -> None:
-    """
-    Downloads a file from the specified URL and saves it to the destination file.
-
-    :param url: The URL of the file to download
-    :type url: str
-    :param dest_filename: The path to save the downloaded file
-    :type dest_filename: str
-    :return: None
-    """
     with urllib.request.urlopen(url) as response, open(dest_filename, 'wb') as out_file:
         shutil.copyfileobj(response, out_file)
 
 def calculate_file_hash(file_path : str) -> str:
-    """
-    Calculates the SHA-256 hash of a file.
-
-    :param file_path: The path to the file
-    :type file_path: str
-    :return: The SHA-256 hash of the file
-    :rtype: str
-    """
     hasher = hashlib.sha256()
     with open(file_path, 'rb') as f:
         for chunk in iter(lambda: f.read(65536), b''):
@@ -46,11 +31,6 @@ def calculate_file_hash(file_path : str) -> str:
     return hasher.hexdigest()
 
 def update() -> None:
-    """
-    Performs the update process for the application.
-
-    :return: None
-    """
     global exclude_files
     if exclude_files is None:
         exclude_files = ()
@@ -96,13 +76,10 @@ def update() -> None:
                 shutil.copy2(file_path, current_file)
 
         print("Update complete.")
-        file_name = os.path.join(current_folder, '_internal', 'warning.dll')
-        if os.path.isfile(file_name):
-            dll = cdll.LoadLibrary(file_name).show_warning_dialog
-            dll.argtypes = [c_wchar_p]
-            dll.restype = None
-            dll("업데이트 완료")
-            del dll
+        root = tk.Tk()
+        root.withdraw()
+        messagebox.showwarning("알림", "업데이트 완료")
+        root.destroy()
         windll.shell32.ShellExecuteW(None, "open", "UmaKey.exe", None, None, 1)
     except Exception as e:
         print(e)

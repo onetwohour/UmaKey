@@ -2,18 +2,6 @@ import urllib.request
 import json
 
 def check_new_release(repo_owner : str, repo_name : str, current_version : str) -> tuple[bool, str|None]:
-    """
-    Check the latest release of a given GitHub repository.
-
-    :param repo_owner: GitHub username of the repository owner
-    :type repo_owner: str
-    :param repo_name: Name of the repository to check
-    :type repo_name: str
-    :param current_version: Current version in use
-    :type current_version: str
-    :return: Tuple indicating whether the latest release differs from the current version and the latest release info (if different)
-    :rtype: tuple[bool, str|None]
-    """
     url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/latest"
     try:
         with urllib.request.urlopen(url) as response:

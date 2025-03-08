@@ -1,6 +1,7 @@
-pywin32==306
-numpy==1.26.4
-Pillow==10.3.0
+pywin32==308
+numpy==2.2.3
+Pillow==11.1.0
 pystray==0.19.5
-psutil==5.9.8
+psutil==7.0.0
 chardet==5.2.0
+opencv-python==4.11.0.86

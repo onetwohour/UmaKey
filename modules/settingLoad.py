@@ -102,40 +102,22 @@ text = {
 }
 
 def convert_value(value_str : str):
-    """
-    Converts a string representation of a value to its corresponding Python data type.
-
-    :param value_str: The string representation of the value
-    :type value_str: str
-    :return: The converted value
-    """
     split = value_str[1:-1].split(',')
-    # 리스트 형태인 경우
     if value_str.startswith("[") and value_str.endswith("]") and len(split) == 3:
         return [int(x) for x in split]
-    # 튜플 형태인 경우
     elif value_str.startswith("(") and value_str.endswith(")") and len(split) == 2:
         return tuple(int(x) for x in split)
-    # 키 형태인 경우
-    elif key_to_byte.get(value_str) != None:
+    elif key_to_byte.get(value_str) is not None:
         return key_to_byte[value_str]
     else:
         return value_str
 
 def upgrade_config(config: dict) -> dict:
-    """
-    Upgrades the configuration to the latest format if necessary.
-
-    :param config: The loaded configuration dictionary.
-    :return: The upgraded configuration dictionary.
-    """
-
     # 버전 정보가 없는 경우 초기 버전으로 간주
     current_version = config.get("version", "1.0")
 
     # 이전 버전에서 최신 버전으로 변환
     if current_version == "1.0":
-        # 버전 정보 업데이트
         config["version"] = "2.0"
         # key_mapping 구조 변경
         if "key_mapping" in config and isinstance(config["key_mapping"], dict):
@@ -153,11 +135,6 @@ def upgrade_config(config: dict) -> dict:
 
 
 def load_json() -> None:
-    """
-    Loads settings from the config file and initializes global variables.
-
-    :return: None
-    """
     global key_mapping, ratio, load, window_title, screen_size
 
     if not os.path.isfile('./config.json'):

@@ -14,9 +14,6 @@ class WindowHandler:
         self.update()
     
     def update(self) -> None:
-        """
-        Updates the hwnd attribute by finding the window handle.
-        """
         self.hwnd = win32gui.FindWindow(None, settingLoad.window_title)
 
 class Window():
@@ -32,11 +29,6 @@ class Window():
         self.event = Event()
 
     def setup(self) -> None:
-        """
-        Sets up the GUI window and initializes its components.
-
-        :return: None
-        """
         self.root = tk.Tk()
         self.root.overrideredirect(True)
         self.window_handler = WindowHandler()
@@ -53,11 +45,6 @@ class Window():
         self.event.clear()
 
     def update_position(self) -> None:
-        """
-        Updates the position of the GUI window to follow the mouse cursor.
-
-        :return: None
-        """
         if not self.run:
             return
         
@@ -72,11 +59,6 @@ class Window():
             self.update_id = self.root.after(8, self.update_position)
 
     def update(self) -> None:
-        """
-        Updates information based on the current state of the game window.
-
-        :return: None
-        """
         def work():
             try:
                 left, top, right, bottom = win32gui.GetWindowRect(self.window_handler.hwnd)
@@ -97,11 +79,6 @@ class Window():
         self.event.clear()
 
     def update_text(self) -> None:
-        """
-        Updates the text content in the GUI periodically.
-
-        :return: None
-        """
         if not self.run:
             return
         
@@ -116,11 +93,6 @@ class Window():
             self.update_text_id = self.root.after(500, self.update_text)
 
     def main(self) -> None:
-        """
-        Starts the main event loop of the GUI application.
-        
-        :return: None
-        """
         self.setup()
         self.update_position()
         self.update_text()
@@ -128,11 +100,6 @@ class Window():
         self.root.mainloop()
     
     def exit(self) -> None:
-        """
-        Destroys the root window and cleans up resources associated with it.
-        
-        :return: None
-        """
         try:
             while self.event.is_set():
                 pass
@@ -152,12 +119,6 @@ class Window():
             self.executor = None
 
     def toggle(self) -> None:
-        """
-        Toggles the state of a class attribute 'run' between True and False,
-        and calls either the 'main' method or the 'exit' method accordingly.
-        
-        :return: None
-        """
         self.run = not self.run
         self.main() if self.run else self.exit()
 
