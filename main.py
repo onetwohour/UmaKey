@@ -11,10 +11,10 @@ import psutil
 import tkinter as tk
 from tkinter import messagebox
 
-text = 'Run'
+text = '시작'
 title = 'UmaKey'
 enable = True
-VERSION = "v1.2.6"
+VERSION = "v1.3.0"
 
 def is_process_running(process_name):
     for proc in psutil.process_iter(['name']):
@@ -24,15 +24,15 @@ def is_process_running(process_name):
 
 def action() -> None:
     global text
-    text = 'Run' if text == 'Stop' else 'Stop'
+    text = '시작' if text == '중지' else '중지'
     Thread(target=auto_clicker.toggle, daemon=True).start()
     icon.update_menu()
-    if text == "Stop":
+    if text == "중지":
         Thread(target=error_check, daemon=True).start()
 
 def error_check() -> None:
     error = False
-    while text == 'Stop' and not error:
+    while text == '중지' and not error:
         if auto_clicker.error_occurred():
             error = True
         time.sleep(0.1)
@@ -43,7 +43,7 @@ def error_check() -> None:
 def getInfo() -> None:
     global enable
     enable = not enable
-    if text == 'Stop' and not enable:
+    if text == '중지' and not enable:
         action()
     else:
         icon.update_menu()
@@ -124,7 +124,7 @@ if __name__ == '__main__':
     infowindow = posinfo.Window()
     img = Image.open('./_internal/UmaKey.ico')
     menu = (item(VERSION, lambda x:x, enabled=False), item(lambda t : text, action, enabled=lambda e : enable),
-            item('Inspector', getInfo), item('Update', upgrade, enabled=download), item('Exit', exit))
+            item('화면 정보', getInfo), item('업데이트', upgrade, enabled=download), item('종료', exit))
     icon = pystray.Icon(title, img, title, menu)
     action()
     icon.run()
