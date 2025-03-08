@@ -78,6 +78,7 @@ def update() -> None:
         print("Update complete.")
         root = tk.Tk()
         root.withdraw()
+        root.attributes("-topmost", True)
         messagebox.showwarning("알림", "업데이트 완료")
         root.destroy()
         windll.shell32.ShellExecuteW(None, "open", "UmaKey.exe", None, None, 1)

@@ -52,6 +52,7 @@ def getInfo() -> None:
 def alert(title="Warning", message="") -> None:
     root = tk.Tk()
     root.withdraw()
+    root.attributes("-topmost", True)
     messagebox.showwarning(title, message)
     root.destroy()
 

@@ -280,6 +280,7 @@ class AutoClicker:
     def show_warning_dialog(self, message : str) -> None:
         root = tk.Tk()
         root.withdraw()
+        root.attributes("-topmost", True)
         messagebox.showwarning("Warning", message)
         root.destroy()
     
