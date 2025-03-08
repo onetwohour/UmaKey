@@ -78,8 +78,8 @@ key_mapping = {
 }
 
 screen_size = {
-    'x': 808,
-    'y': 1453
+    "x": 775,
+    "y": 1377
 }
 
 support_key = ["BACKSPACE, TAB, CLEAR, ENTER, SHIFT, CTRL, PAUSE, CAPS_LOCK, ESC, SPACEBAR, PAGE_UP, PAGE_DOWN, ",
