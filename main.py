@@ -14,7 +14,7 @@ from tkinter import messagebox
 text = '시작'
 title = 'UmaKey'
 enable = True
-VERSION = "v1.3.0"
+VERSION = "v1.3.1"
 
 def is_process_running(process_name):
     for proc in psutil.process_iter(['name']):

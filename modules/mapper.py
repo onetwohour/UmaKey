@@ -24,6 +24,8 @@ kernel32 = windll.kernel32
 
 HOOKPROC = ctypes.WINFUNCTYPE(ctypes.wintypes.LPARAM, ctypes.c_int, ctypes.wintypes.WPARAM, ctypes.POINTER(ctypes.wintypes.LPARAM))
 
+TARGET_PROCESS = 'umamusume.exe'
+
 @dataclass
 class KBDLLHOOKSTRUCT(ctypes.Structure):
     _fields_ = [
@@ -51,7 +53,7 @@ class WindowHandler:
         self.hwnd = win32gui.FindWindow(None, settingLoad.window_title)
         if not self.hwnd:
             return
-        process = self.find_process_by_name('umamusume.exe')
+        process = self.find_process_by_name(TARGET_PROCESS)
         if process is None:
             self.hwnd = 0
             return
@@ -81,7 +83,7 @@ class WindowHandler:
         except Exception:
             return False
         
-    def get_window_position(self):
+    def get_window_position(self) -> tuple[int, int, int, int]:
         left, top, right, bottom = win32gui.GetClientRect(self.hwnd)
         width, height = right - left, bottom - top
         left, top = map(sum, zip((left, top), win32gui.ClientToScreen(self.hwnd, (0, 0))))
@@ -95,6 +97,7 @@ class ColorFinder:
         left, top, right, bottom = win32gui.GetClientRect(self.hwnd)
         width, height = right - left, bottom - top
         max_height = height // 5
+        offset = 20
 
         hwindc = win32gui.GetWindowDC(self.hwnd)
         srcdc = win32ui.CreateDCFromHandle(hwindc)
@@ -109,20 +112,20 @@ class ColorFinder:
         img = np.frombuffer(bmpstr, dtype=np.uint8)
         img.shape = (bmpinfo['bmHeight'], bmpinfo['bmWidth'], 4)
         img = cv2.cvtColor(img, cv2.COLOR_BGRA2RGB)
-        cropped_img = img[max_height:, 20:width-20]
+        cropped_img = img[max_height:, offset:width-offset]
 
         srcdc.DeleteDC()
         memdc.DeleteDC()
         win32gui.ReleaseDC(self.hwnd, hwindc)
         win32gui.DeleteObject(bitmap.GetHandle())
 
-        return cropped_img, max_height, 20
+        return cropped_img, max_height, offset
 
     def find_color(self, target_color: list[int, int, int], tolerance: int) -> tuple[None, None] | tuple[int, int] | tuple[bool, bool]:
-        image, margin_h, margin_w = self.capture_screen()
+        image, offset_h, offset_w = self.capture_screen()
         left, top = win32gui.ClientToScreen(self.hwnd, (0, 0))
-        left += margin_w
-        top += margin_h
+        left += offset_w
+        top += offset_h
 
         lower_bound = np.array([max(0, c - tolerance) for c in target_color], dtype=np.uint8)
         upper_bound = np.array([min(255, c + tolerance) for c in target_color], dtype=np.uint8)
@@ -218,8 +221,8 @@ class KeyboardHook:
 
 class AutoClicker:
     def __init__(self, tolerance : float = 10) -> None:
-        self.window_handler = None
-        self.color_finder = None
+        self.window_handler = WindowHandler()
+        self.color_finder = ColorFinder()
         self.tolerance = tolerance
         self.key_mapping_index = 0
         self.key_mapping = None
@@ -228,24 +231,33 @@ class AutoClicker:
         self.keyboard_hook = KeyboardHook()
         self.error = None
 
+    @staticmethod
+    def exception_handler(func):
+        def wrapper(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                instance = args[0]
+                if isinstance(instance, AutoClicker):
+                    instance.destroy()
+                    instance.__state = -1
+                    instance.error = e
+                return None
+        return wrapper
+
     def is_run(self):
         return self.__state > 0
 
+    @exception_handler
     def run(self) -> None:
         if self.is_run():
             return
         self.__state = 1
         
-        if self.window_handler is None:
-            self.window_handler = WindowHandler()
-
-        if self.color_finder is None:
-            self.color_finder = ColorFinder()
-
         self.keyboard_hook.start()
 
         self.thread = Thread(target=self.monitor)
-        self.thread.run()
+        self.thread.start()
 
     def disable(self):
         self.keyboard_hook.register_callback(None)
@@ -253,17 +265,13 @@ class AutoClicker:
     def enable(self):
         self.keyboard_hook.register_callback(self.on_keyboard_event)
 
+    @exception_handler
     def monitor(self):
         while self.is_run():
-            if not win32gui.IsWindow(self.window_handler.hwnd):
+            if not self.window_handler.hwnd or not win32gui.IsWindow(self.window_handler.hwnd):
                 self.disable()
                 time.sleep(0.5)
                 self.window_handler.update()
-                continue
-
-            if not self.window_handler.hwnd:
-                self.disable()
-                time.sleep(0.5)
                 continue
 
             if self.__state == 1:
@@ -282,13 +290,14 @@ class AutoClicker:
                     self.enable()
                 time.sleep(0.5)
                 
+    @exception_handler
     def screen_size_detect(self) -> None:
         delay = time.time()
         timeout = 15
         while self.is_run() and time.time() - delay < 10:
             time.sleep(0.1)
         
-        while self.is_run() and time.time() - delay < timeout and win32gui.IsWindow(self.window_handler.hwnd) and self.error == "":
+        while self.is_run() and time.time() - delay < timeout and win32gui.IsWindow(self.window_handler.hwnd) and self.error is None:
             left, top, right, bottom = self.window_handler.get_window_position()
             if win32gui.IsIconic(self.window_handler.hwnd):
                 timeout += 0.1
@@ -325,6 +334,7 @@ class AutoClicker:
                 keys.append(token) 
         return keys
 
+    @exception_handler
     def on_keyboard_event(self, vk: int) -> bool:
         key = settingLoad.byte_to_key.get(vk)
         if key == settingLoad.key_mapping.get("switch"):
@@ -454,16 +464,13 @@ class AutoClicker:
             self.keyboard_hook.stop()
         except Exception:
             pass
-
+    
+    @exception_handler
     def toggle(self) -> None:
         if not self.is_run():
-            try:
-                settingLoad.load_json()
-                self.key_mapping = list(settingLoad.key_mapping.keys())[self.key_mapping_index]
-                self.run()
-            except Exception as e:
-                self.__state = -1
-                self.error = e
+            settingLoad.load_json()
+            self.key_mapping = list(settingLoad.key_mapping.keys())[self.key_mapping_index]
+            self.run()
         else:
             self.destroy()
 
