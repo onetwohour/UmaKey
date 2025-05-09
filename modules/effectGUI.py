@@ -9,8 +9,15 @@ class RippleEffectManager:
     def add(self, x, y):
         effect = RippleEffect(self.canvas, x, y)
         self.effects.append(effect)
-        effect.animate(self.effects)
+        effect.animate(self.effects, self)
 
+    def remove(self, effect):
+        if effect in self.effects:
+            self.effects.remove(effect)
+        if not self.effects:
+            self.canvas.delete("all")
+            RippleWindow.get_instance().hide()
+            
 class RippleEffect:
     def __init__(self, canvas, x, y):
         self.canvas = canvas
@@ -20,17 +27,15 @@ class RippleEffect:
         self.x = x
         self.y = y
 
-    def animate(self, effects):
+    def animate(self, effects, manager):
         if self.radius > self.max_radius:
             if self.ring:
                 self.canvas.delete(self.ring)
-            effects.remove(self)
+            manager.remove(self)
             return
 
         if self.ring:
             self.canvas.delete(self.ring)
-
-        self.radius += 1.5
 
         r = int(128 + self.radius * 5)
         g = int(136 + self.radius * 3)
@@ -46,7 +51,8 @@ class RippleEffect:
             outline=color,
             width=width
         )
-        self.canvas.after(10, lambda: self.animate(effects))
+        self.radius += 1.5
+        self.canvas.after(10, lambda: self.animate(effects, manager))
 
 class RippleWindow:
     _instance = None
@@ -57,8 +63,8 @@ class RippleWindow:
         self.root.attributes("-transparentcolor", "pink")
         self.root.overrideredirect(True)
 
-        self.width = 250
-        self.height = 250
+        self.width = 75
+        self.height = 75
 
         self.root.geometry(f"{self.width}x{self.height}+0+0")
 
@@ -66,9 +72,9 @@ class RippleWindow:
         self.canvas.pack()
         self.manager = RippleEffectManager(self.canvas)
 
-        self._track_mouse()
-
     def _track_mouse(self):
+        if not self.manager.effects:
+            return
         x, y = win32api.GetCursorPos()
         x -= self.width // 2
         y -= self.height // 2
@@ -76,8 +82,19 @@ class RippleWindow:
         self.root.after(5, self._track_mouse)
 
     def show(self):
-        cx, cy = self.canvas.winfo_width() // 2, self.canvas.winfo_height() // 2
+        try:
+            self.root.deiconify()
+        except:
+            return
+        cx, cy = self.width // 2, self.height // 2
         self.manager.add(cx, cy)
+        self._track_mouse()
+
+    def hide(self):
+        try:
+            self.root.withdraw()
+        except:
+            pass
 
     def start(self):
         self.root.mainloop()
