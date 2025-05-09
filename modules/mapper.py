@@ -13,6 +13,7 @@ import re
 import psutil
 import win32process
 import cv2
+from .effectGUI import RippleWindow
 from threading import Thread
 from modules import settingLoad
 import ctypes
@@ -230,6 +231,7 @@ class AutoClicker:
         self.thread = None
         self.keyboard_hook = KeyboardHook()
         self.error = None
+        Thread(target=lambda: RippleWindow.get_instance().start(), daemon=True).start()
 
     @staticmethod
     def exception_handler(func):
@@ -277,6 +279,7 @@ class AutoClicker:
             if self.__state == 1:
                 if not self.window_handler.activate_window():
                     self.disable()
+                    time.sleep(0.5)
                     continue
                 Thread(target=self.screen_size_detect, daemon=True).start()
                 self.enable()
@@ -285,7 +288,6 @@ class AutoClicker:
             elif self.__state == 2:
                 if not self.window_handler.is_window_foreground():
                     self.disable()
-                    continue
                 else:
                     self.enable()
                 time.sleep(0.5)
@@ -312,7 +314,10 @@ class AutoClicker:
         root.attributes("-topmost", True)
         messagebox.showwarning("Warning", message)
         root.destroy()
-    
+
+    def ring_effect(self):
+        RippleWindow.get_instance().show()
+
     def decode(self, text : str) -> list:
         keys = []
         tokens = re.findall(r'\[.*?\]|\(.*?\)|\d+|\b\w+\s[\d.]+\b|\w+', settingLoad.load[text])
@@ -444,6 +449,7 @@ class AutoClicker:
             elif key == 'switch': # 프리셋 변환
                 self.key_mapping_index = (self.key_mapping_index + 1) % len(settingLoad.key_mapping.keys())
                 self.key_mapping = list(settingLoad.key_mapping.keys())[self.key_mapping_index]
+                self.ring_effect()
                 if self.key_mapping == 'switch':
                     self.key_mapping_index = (self.key_mapping_index + 1) % len(settingLoad.key_mapping.keys())
                     self.key_mapping = list(settingLoad.key_mapping.keys())[self.key_mapping_index]
