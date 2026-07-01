@@ -1,5 +1,6 @@
-__pycache__
-*.dist/
-*.build/
-*.bat
-*.exe
+# Rust build output
+/target
+
+# Backups / debug symbols
+**/*.rs.bk
+*.pdb

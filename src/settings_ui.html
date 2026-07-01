@@ -1,0 +1,504 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --bg:#16171a; --panel:#1d1f23; --panel-2:#23262b; --line:#2d3036;
+    --text:#eceef0; --muted:#878d94; --accent:#6fa83f; --accent-strong:#7cbb47;
+    --danger:#d2726f; --r:5px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;}
+  body{background:var(--bg); color:var(--text);
+    font-family:"Malgun Gothic","Segoe UI",system-ui,sans-serif; font-size:14px; line-height:1.5;
+    -webkit-user-select:none; user-select:none;}
+  .mono,input[type=text].mono,button.keycap,.val-text{font-family:"Consolas",ui-monospace,"D2Coding",monospace;}
+  header{position:sticky; top:0; z-index:5; display:flex; align-items:center; justify-content:space-between;
+    height:52px; padding:0 20px; background:var(--bg); border-bottom:1px solid var(--line);}
+  header h1{font-size:15px; font-weight:600; margin:0;}
+  .row-actions{display:flex; gap:8px;}
+  main{padding:20px 20px 40px; max-width:900px; margin:0 auto;}
+  .hint{color:var(--muted); font-size:13px; margin:0 0 22px;}
+  section{margin-bottom:26px;}
+  h2{font-size:12px; font-weight:600; color:var(--muted); letter-spacing:.06em; text-transform:uppercase; margin:0 0 10px;}
+  input[type=text],select,button{font-family:inherit; font-size:14px; color:var(--text);}
+  input[type=text]{height:32px; padding:0 10px; background:var(--panel-2); border:1px solid var(--line);
+    border-radius:var(--r); outline:none;}
+  input[type=text]:focus{border-color:var(--accent);}
+  input.num{width:66px; text-align:center;}
+  .times{color:var(--muted);}
+  select{height:32px; padding:0 8px; background:var(--panel-2); border:1px solid var(--line);
+    border-radius:var(--r); outline:none; cursor:pointer;}
+  select:focus{border-color:var(--accent);}
+  button{height:32px; padding:0 13px; cursor:pointer; background:var(--panel-2); border:1px solid var(--line);
+    border-radius:var(--r); transition:background .12s,border-color .12s; white-space:nowrap;}
+  button:hover{background:#282b31; border-color:#3b3f46;}
+  button:active{transform:translateY(1px);}
+  button.primary{background:var(--accent); border-color:var(--accent); color:#0e1408; font-weight:600;}
+  button.primary:hover{background:var(--accent-strong); border-color:var(--accent-strong);}
+  button.secondary{background:transparent; border-color:var(--accent); color:var(--accent-strong);}
+  button.secondary:hover{background:rgba(111,168,63,.12);}
+  button.ghost-danger{color:var(--danger); border-color:transparent; background:transparent; padding:0 8px;}
+  button.ghost-danger:hover{color:#e88b88;}
+  button.link{height:auto; min-height:26px; padding:2px 8px; background:transparent; border:none;
+    color:var(--accent-strong); flex:none;}
+  button.link:hover{background:transparent; text-decoration:underline;}
+  button.mini{height:26px; padding:0 10px; font-size:13px;}
+  button.dashed{border-style:dashed; color:var(--muted);}
+  button.keycap{min-width:88px; font-weight:600;}
+  button.keycap.empty{color:var(--muted); font-weight:400; font-family:"Malgun Gothic","Segoe UI",sans-serif;}
+  input[type=color]{width:26px; height:26px; padding:0; border:1px solid var(--line); border-radius:4px;
+    background:var(--panel-2); cursor:pointer; flex:none;}
+  input[type=color]::-webkit-color-swatch-wrapper{padding:2px;}
+  input[type=color]::-webkit-color-swatch{border:none; border-radius:3px;}
+  .panel{border:1px solid var(--line); border-radius:var(--r); background:var(--panel); overflow:hidden;}
+  .panel.pad{padding:14px 16px;}
+  .field{display:flex; align-items:center; gap:10px; margin-bottom:10px;}
+  .field:last-child{margin-bottom:0;}
+  .field>label{width:60px; color:var(--muted); font-size:13px; flex:none;}
+  .tabs{display:flex; align-items:flex-end; gap:2px; border-bottom:1px solid var(--line); margin-bottom:16px;}
+  .tab{height:34px; padding:0 14px; background:transparent; border:none; border-radius:0;
+    color:var(--muted); border-bottom:2px solid transparent; margin-bottom:-1px;}
+  .tab:hover{color:var(--text); background:transparent;}
+  .tab.active{color:var(--text); border-bottom-color:var(--accent); font-weight:600;}
+  .tab.add{color:var(--muted); margin-left:6px;}
+  .tab.add:hover{color:var(--text);}
+  .preset-name{display:flex; align-items:center; gap:10px; margin-bottom:12px;}
+  .preset-name label{color:var(--muted); font-size:13px;}
+  table{width:100%; border-collapse:collapse;}
+  thead th{text-align:left; font-weight:500; font-size:11px; color:var(--muted); letter-spacing:.04em;
+    text-transform:uppercase; padding:9px 12px; background:var(--panel-2); border-bottom:1px solid var(--line);}
+  tbody td{padding:6px 12px; vertical-align:middle; border-bottom:1px solid var(--line);}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover td{background:rgba(255,255,255,.02);}
+  .col-key{width:104px;} .col-kind{width:112px;} .col-edit{width:60px;} .col-del{width:56px; text-align:right;}
+  .val-cell{display:flex; align-items:center; gap:8px;}
+  .val-cell input[type=text]{flex:1; min-width:0;}
+  .val-text{color:var(--muted); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .add-row{display:flex; padding:8px 12px; border-top:1px solid var(--line);}
+  .macro{border:1px solid var(--line); border-radius:var(--r); background:var(--panel); margin-bottom:12px; overflow:hidden;}
+  .macro-head{display:flex; align-items:center; gap:10px; padding:10px 12px; border-bottom:1px solid var(--line); background:var(--panel-2);}
+  .macro-head .lbl{color:var(--muted); font-size:13px;}
+  .macro-head .spacer{flex:1;}
+  .steps{padding:10px 12px; display:flex; flex-direction:column; gap:6px;}
+  .step{display:flex; align-items:center; gap:8px; padding:4px 4px; border-radius:var(--r); border:1px solid transparent;}
+  .step.dragover{border-color:var(--accent); background:rgba(111,168,63,.10);}
+  .step .handle{cursor:grab; color:var(--muted); user-select:none; padding:0 2px; font-size:16px; line-height:1;}
+  .step .handle:active{cursor:grabbing;}
+  .step-val{display:flex; align-items:center; gap:8px; flex:1; min-width:0;}
+  .step-val input[type=text]{flex:1; min-width:0;}
+  .step-empty{color:var(--muted); font-size:13px; padding:2px 2px 6px;}
+  .add-step{padding:0 12px 12px; display:flex; gap:8px; align-items:center;}
+  #overlay{position:fixed; inset:0; display:none; z-index:50; align-items:center; justify-content:center;
+    background:rgba(10,11,12,.82);}
+  #overlay.show{display:flex;}
+  .overlay-card{background:var(--panel); border:1px solid var(--accent); border-radius:var(--r);
+    padding:20px 26px; text-align:center; max-width:340px;}
+  .overlay-card .big{font-size:15px; font-weight:600; margin-bottom:6px;}
+  .overlay-card .sub{color:var(--muted); font-size:13px;}
+  #toast{position:fixed; left:50%; bottom:22px; transform:translateX(-50%); background:var(--panel-2);
+    border:1px solid var(--line); color:var(--text); padding:9px 16px; border-radius:var(--r);
+    font-size:13px; opacity:0; transition:opacity .15s; pointer-events:none; z-index:60;}
+  #toast.show{opacity:1;}
+</style>
+</head>
+<body>
+  <header>
+    <h1>UmaKey 설정</h1>
+    <div class="row-actions">
+      <button id="reload">다시 불러오기</button>
+      <button id="save" class="primary">저장</button>
+    </div>
+  </header>
+
+  <main>
+    <p class="hint">키 칸을 눌러 원하는 키를 누르고, 값은 종류에 맞게 지정하세요. 매크로는 스텝을 추가하고 핸들(⋮⋮)을 끌어 순서를 바꿀 수 있습니다.</p>
+
+    <section>
+      <h2>기본 설정</h2>
+      <div class="panel pad">
+        <div class="field"><label>창 제목</label><input type="text" id="title" style="width:220px"></div>
+        <div class="field"><label>해상도</label><input type="text" id="sx" class="num mono"><span class="times">×</span><input type="text" id="sy" class="num mono"><button id="detect" class="secondary" style="margin-left:8px">자동 감지</button></div>
+        <div class="field"><label>전환 키</label><button id="switch" class="keycap"></button></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>키 매핑</h2>
+      <div class="tabs" id="tabs"></div>
+      <div class="preset-name"><label>프리셋 이름</label><input type="text" id="presetName" style="width:200px"></div>
+      <div class="panel">
+        <table>
+          <thead><tr>
+            <th class="col-key">키</th><th class="col-kind">동작</th><th>값</th>
+            <th class="col-edit"></th><th class="col-del"></th>
+          </tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+        <div class="add-row"><button id="addRow" class="dashed">+ 매핑 추가</button></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>매크로</h2>
+      <div id="macros"></div>
+      <button id="addMacro" class="dashed" style="margin-top:4px">+ 매크로</button>
+    </section>
+  </main>
+
+  <div id="overlay"><div class="overlay-card">
+    <div class="big" id="overlayBig">대기 중…</div>
+    <div class="sub" id="overlaySub"></div>
+  </div></div>
+  <div id="toast"></div>
+
+<script>
+const RESERVED = ["version","window_title","support_key","type","key_mapping","screen_size"];
+const KINDS = [["color","색상 클릭"],["pos","좌표 클릭"],["drag","드래그"],["key","키 입력"],["macro","매크로"],["raw","직접 입력"]];
+const STEP_TYPES = [["key","키"],["color","색상"],["pos","좌표"],["drag","드래그"],["sleep","딜레이"],["macro","매크로"]];
+
+let root = {};
+let M = { title:"umamusume", sx:775, sy:1377, switch:"F1", presets:[], macros:[] };
+let sel = 0;
+let reqId = 0; const pending = {};
+let detectMode = "button";
+let KEYSET = new Set();
+let dragSrc = null;
+
+const $ = (id) => document.getElementById(id);
+function send(o){ window.ipc.postMessage(JSON.stringify(o)); }
+function requestDetect(mode){ detectMode = mode; send({ cmd:"detect" }); }
+
+function inferKind(v){
+  v = (v||"").trim();
+  if (v.startsWith("[")) return "color";
+  if (v.startsWith("(")) return "pos";
+  if (v.startsWith("drag")) return "drag";
+  if (M.macros.some(m => m.name === v)) return "macro";
+  if (KEYSET.has(v)) return "key";
+  return "raw";
+}
+function kindHint(k){
+  return k==="color" ? "게임 화면에서 원하는 색을 클릭하세요"
+    : k==="pos" ? "게임 화면에서 클릭할 좌표를 클릭하세요"
+    : k==="drag" ? "드래그 시작점과 끝점을 차례로 클릭하세요" : "";
+}
+function rgbToHex(v){
+  v = (v||"").trim();
+  if (!(v.startsWith("[") && v.endsWith("]"))) return null;
+  const p = v.slice(1,-1).split(",").map(s => parseInt(s.trim(),10));
+  if (!(p.length===3 && p.every(n=>Number.isFinite(n)))) return null;
+  return "#" + p.map(n => Math.max(0,Math.min(255,n)).toString(16).padStart(2,"0")).join("");
+}
+function hexToRgb(hex){
+  const n = hex.replace("#","");
+  return `[${parseInt(n.slice(0,2),16)}, ${parseInt(n.slice(2,4),16)}, ${parseInt(n.slice(4,6),16)}]`;
+}
+
+function parseSteps(def, macroNames){
+  const steps = []; const re = /\[.*?\]|\(.*?\)|\d+|\b\w+\s[\d.]+\b|\w+/g; let m;
+  while ((m = re.exec(def)) !== null){
+    const t = m[0];
+    if (t.startsWith("[")) steps.push({ type:"color", value:t });
+    else if (t.startsWith("(")){
+      const last = steps[steps.length-1];
+      if (last && last.type==="drag" && (last.value.match(/\(/g)||[]).length < 2) last.value += " " + t;
+      else steps.push({ type:"pos", value:t });
+    }
+    else if (/^\d+$/.test(t)) steps.push({ type:"key", value:t });
+    else if (/^\w+\s[\d.]+$/.test(t)){ const sp = t.split(/\s+/); if (sp[0]==="sleep") steps.push({ type:"sleep", value:sp[1] }); else steps.push({ type:"key", value:t }); }
+    else if (t==="drag") steps.push({ type:"drag", value:"drag" });
+    else if (macroNames.has(t)) steps.push({ type:"macro", value:t });
+    else steps.push({ type:"key", value:t });
+  }
+  return steps;
+}
+function stepsToDef(steps){
+  return steps.map(s => s.type==="sleep" ? ("sleep " + s.value) : s.value).filter(x => x && x.trim()).join(", ");
+}
+function defaultStep(type){
+  if (type==="sleep") return { type, value:"0.1" };
+  if (type==="color") return { type, value:"[0, 0, 0]" };
+  if (type==="drag") return { type, value:"drag" };
+  if (type==="macro") return { type, value:(M.macros[0] ? M.macros[0].name : "") };
+  if (type==="pos") return { type, value:"" };
+  return { type:"key", value:"" };
+}
+
+function buildModel(cfg){
+  root = cfg;
+  M.title = typeof cfg.window_title === "string" ? cfg.window_title : "umamusume";
+  M.sx = cfg.screen_size && cfg.screen_size.x != null ? cfg.screen_size.x : 775;
+  M.sy = cfg.screen_size && cfg.screen_size.y != null ? cfg.screen_size.y : 1377;
+  const km = cfg.key_mapping || {};
+  M.switch = typeof km.switch === "string" ? km.switch : "F1";
+
+  KEYSET = new Set();
+  if (Array.isArray(cfg.support_key))
+    for (const line of cfg.support_key) if (typeof line === "string")
+      for (const t of line.split(",")){ const k = t.trim(); if (k) KEYSET.add(k); }
+
+  const entries = Object.entries(cfg).filter(([k,v]) => !RESERVED.includes(k) && typeof v === "string");
+  const macroNames = new Set(entries.map(([k]) => k));
+  M.macros = entries.map(([k,v]) => ({ name:k, steps: parseSteps(v, macroNames) }));
+
+  M.presets = [];
+  for (const [name, val] of Object.entries(km)){
+    if (val && typeof val === "object"){
+      const rows = Object.entries(val).map(([k,v]) => ({ key:k, value:String(v), kind:inferKind(String(v)), editing:false }));
+      M.presets.push({ name, rows });
+    }
+  }
+  if (sel >= M.presets.length) sel = 0;
+}
+
+function toConfigString(){
+  const out = Object.assign({}, root);
+  out.window_title = M.title;
+  out.screen_size = { x: parseInt(M.sx,10) || 775, y: parseInt(M.sy,10) || 1377 };
+  const km = {};
+  for (const p of M.presets){
+    const e = {};
+    for (const r of p.rows) if (r.key.trim()) e[r.key] = r.value;
+    km[p.name] = e;
+  }
+  km.switch = M.switch;
+  out.key_mapping = km;
+  for (const k of Object.keys(out)) if (!RESERVED.includes(k) && typeof out[k] === "string") delete out[k];
+  for (const m of M.macros) if (m.name.trim()) out[m.name] = stepsToDef(m.steps);
+  return JSON.stringify(out, null, 4);
+}
+
+function el(tag, cls, txt){ const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
+function focusSoon(input){ setTimeout(() => { input.focus(); input.select(); }, 0); }
+
+function render(){
+  $("title").value = M.title; $("sx").value = M.sx; $("sy").value = M.sy;
+  const sw = $("switch"); sw.textContent = M.switch || "키 지정"; sw.classList.toggle("empty", !M.switch);
+
+  const tabs = $("tabs"); tabs.innerHTML = "";
+  M.presets.forEach((p, i) => {
+    const b = el("button", "tab" + (i===sel ? " active" : ""), p.name);
+    b.onclick = () => { sel = i; render(); };
+    tabs.appendChild(b);
+  });
+  const add = el("button", "tab add", "+ 프리셋");
+  add.onclick = () => { M.presets.push({ name:"preset"+M.presets.length, rows:[] }); sel = M.presets.length-1; render(); };
+  tabs.appendChild(add);
+
+  const preset = M.presets[sel];
+  $("presetName").value = preset ? preset.name : "";
+  $("presetName").oninput = (e) => { if (preset) preset.name = e.target.value; renderTabsOnly(); };
+
+  const rows = $("rows"); rows.innerHTML = "";
+  if (preset) preset.rows.forEach((r) => rows.appendChild(rowEl(r)));
+
+  const macros = $("macros"); macros.innerHTML = "";
+  M.macros.forEach((m, mi) => macros.appendChild(macroCard(m, mi)));
+}
+function renderTabsOnly(){
+  const tabs = $("tabs").children;
+  M.presets.forEach((p, i) => { if (tabs[i]) tabs[i].textContent = p.name; });
+}
+
+function captureVal(obj, kind){
+  capture("captureValue",
+    { kind, title:M.title, sx:parseInt(M.sx,10)||775, sy:parseInt(M.sy,10)||1377, hint:kindHint(kind) },
+    (v) => { if (v){ obj.value = v; render(); } else toast("게임 창을 찾지 못했습니다"); });
+}
+
+// ---- 매핑 값 셀 ----
+function valueCell(r){
+  const td = el("td"); const cell = el("div","val-cell");
+  if (r.editing){
+    const inp = el("input","mono"); inp.type="text"; inp.value=r.value;
+    inp.oninput = () => r.value = inp.value;
+    inp.onkeydown = (e) => { if (e.key==="Enter"){ r.editing=false; r.kind=inferKind(r.value); render(); } };
+    cell.appendChild(inp); focusSoon(inp);
+  } else if (r.kind==="color"){
+    const pick = el("input"); pick.type="color"; pick.value = rgbToHex(r.value) || "#000000";
+    pick.oninput = () => { r.value = hexToRgb(pick.value); render(); };
+    cell.appendChild(pick);
+    cell.appendChild(el("span","val-text", r.value || "색 선택"));
+    const grab = el("button","link","집기"); grab.onclick = () => captureVal(r,"color"); cell.appendChild(grab);
+  } else if (r.kind==="pos" || r.kind==="drag"){
+    cell.appendChild(el("span","val-text", r.value || "(비어 있음)"));
+    const grab = el("button","link","집기"); grab.onclick = () => captureVal(r,r.kind); cell.appendChild(grab);
+  } else if (r.kind==="key"){
+    const kb = el("button","keycap"+(r.value?"":" empty"), r.value || "키 지정");
+    kb.onclick = () => capture("captureKey", { hint:"입력할 키를 누르세요" }, (v) => { if (v){ r.value=v; render(); } });
+    cell.appendChild(kb);
+  } else if (r.kind==="macro"){
+    cell.appendChild(macroSelect(r));
+  } else {
+    const inp = el("input","mono"); inp.type="text"; inp.value=r.value;
+    inp.oninput = () => r.value = inp.value;
+    cell.appendChild(inp);
+  }
+  td.appendChild(cell); return td;
+}
+function macroSelect(obj){
+  const ms = el("select");
+  const names = M.macros.map(m=>m.name).filter(n=>n.trim());
+  if (!names.includes(obj.value)){ const o=el("option",null,"(매크로 선택)"); o.value=""; o.selected=true; ms.appendChild(o); }
+  names.forEach(n => { const o=el("option",null,n); o.value=n; if(n===obj.value)o.selected=true; ms.appendChild(o); });
+  ms.onchange = () => { obj.value = ms.value; };
+  return ms;
+}
+
+function rowEl(r){
+  const tr = el("tr");
+  const tdKey = el("td");
+  const keyBtn = el("button", "keycap"+(r.key?"":" empty"), r.key || "키 지정");
+  keyBtn.title = "누른 뒤 원하는 키를 누르세요";
+  keyBtn.onclick = () => capture("captureKey", { hint:"바꿀 키를 누르세요" }, (v) => { if (v){ r.key=v; render(); } });
+  tdKey.appendChild(keyBtn); tr.appendChild(tdKey);
+
+  const tdKind = el("td");
+  const kindSel = el("select");
+  KINDS.forEach(([k,label]) => { const o=el("option",null,label); o.value=k; if(k===r.kind)o.selected=true; kindSel.appendChild(o); });
+  kindSel.onchange = () => { r.kind = kindSel.value; r.editing=false; render(); };
+  tdKind.appendChild(kindSel); tr.appendChild(tdKind);
+
+  tr.appendChild(valueCell(r));
+
+  const tdEdit = el("td","col-edit");
+  if (r.kind !== "raw"){
+    const ed = el("button","mini", r.editing ? "완료" : "편집");
+    ed.onclick = () => { if (r.editing){ r.editing=false; r.kind=inferKind(r.value); } else { r.editing=true; } render(); };
+    tdEdit.appendChild(ed);
+  }
+  tr.appendChild(tdEdit);
+
+  const tdDel = el("td","col-del");
+  const del = el("button","ghost-danger","삭제");
+  del.onclick = () => { const arr=M.presets[sel].rows; arr.splice(arr.indexOf(r),1); render(); };
+  tdDel.appendChild(del); tr.appendChild(tdDel);
+  return tr;
+}
+
+// ---- 매크로 스텝 편집기 ----
+function macroCard(m, mi){
+  const card = el("div","macro");
+  const head = el("div","macro-head");
+  head.appendChild(el("span","lbl","이름"));
+  const name = el("input","mono"); name.type="text"; name.value=m.name; name.style.width="150px";
+  name.oninput = () => m.name = name.value; head.appendChild(name);
+  head.appendChild(el("div","spacer"));
+  const delM = el("button","ghost-danger","매크로 삭제");
+  delM.onclick = () => { M.macros.splice(mi,1); render(); }; head.appendChild(delM);
+  card.appendChild(head);
+
+  const box = el("div","steps");
+  if (m.steps.length === 0) box.appendChild(el("div","step-empty","스텝이 없습니다. 아래에서 추가하세요."));
+  m.steps.forEach((s, si) => box.appendChild(stepEl(m, mi, s, si)));
+  card.appendChild(box);
+
+  const addBox = el("div","add-step");
+  const addSel = el("select");
+  STEP_TYPES.forEach(([v,l]) => { const o=el("option",null,l); o.value=v; addSel.appendChild(o); });
+  const addBtn = el("button","dashed","+ 스텝 추가");
+  addBtn.onclick = () => { m.steps.push(defaultStep(addSel.value)); render(); };
+  addBox.appendChild(addSel); addBox.appendChild(addBtn);
+  card.appendChild(addBox);
+  return card;
+}
+
+function stepEl(m, mi, s, si){
+  const row = el("div","step");
+  const handle = el("span","handle","⋮⋮"); handle.title="드래그로 순서 변경"; handle.draggable = true;
+  handle.ondragstart = (e) => { dragSrc = { mi, si }; e.dataTransfer.effectAllowed="move"; e.dataTransfer.setData("text/plain",""); };
+  row.appendChild(handle);
+  row.ondragover = (e) => { if (dragSrc && dragSrc.mi===mi){ e.preventDefault(); row.classList.add("dragover"); } };
+  row.ondragleave = () => row.classList.remove("dragover");
+  row.ondrop = (e) => {
+    e.preventDefault(); row.classList.remove("dragover");
+    if (dragSrc && dragSrc.mi===mi && dragSrc.si!==si){ const arr=m.steps; const [mv]=arr.splice(dragSrc.si,1); arr.splice(si,0,mv); render(); }
+    dragSrc = null;
+  };
+
+  const typeSel = el("select");
+  STEP_TYPES.forEach(([v,l]) => { const o=el("option",null,l); o.value=v; if(v===s.type)o.selected=true; typeSel.appendChild(o); });
+  typeSel.onchange = () => { s.type=typeSel.value; s.value=defaultStep(s.type).value; s.editing=false; render(); };
+  row.appendChild(typeSel);
+
+  row.appendChild(stepValue(s));
+
+  const del = el("button","ghost-danger","×"); del.style.padding="0 10px";
+  del.onclick = () => { m.steps.splice(si,1); render(); }; row.appendChild(del);
+  return row;
+}
+
+function stepValue(s){
+  const box = el("div","step-val");
+  if (s.editing){
+    const inp = el("input","mono"); inp.type="text"; inp.value=s.value;
+    inp.oninput = () => s.value = inp.value;
+    inp.onkeydown = (e) => { if (e.key==="Enter"){ s.editing=false; render(); } };
+    box.appendChild(inp); focusSoon(inp); return box;
+  }
+  if (s.type==="color"){
+    const pick = el("input"); pick.type="color"; pick.value = rgbToHex(s.value) || "#000000";
+    pick.oninput = () => { s.value = hexToRgb(pick.value); render(); };
+    box.appendChild(pick);
+    box.appendChild(el("span","val-text", s.value || "색 선택"));
+    const grab = el("button","link","집기"); grab.onclick = () => captureVal(s,"color"); box.appendChild(grab);
+  } else if (s.type==="pos" || s.type==="drag"){
+    box.appendChild(el("span","val-text", s.value || "(비어 있음)"));
+    const grab = el("button","link","집기"); grab.onclick = () => captureVal(s,s.type); box.appendChild(grab);
+    const ed = el("button","link","편집"); ed.onclick = () => { s.editing=true; render(); }; box.appendChild(ed);
+  } else if (s.type==="key"){
+    const kb = el("button","keycap"+(s.value?"":" empty"), s.value || "키 지정");
+    kb.onclick = () => capture("captureKey", { hint:"입력할 키를 누르세요" }, (v) => { if (v){ s.value=v; render(); } });
+    box.appendChild(kb);
+  } else if (s.type==="sleep"){
+    const inp = el("input","mono num"); inp.type="text"; inp.value=s.value;
+    inp.oninput = () => s.value = inp.value; box.appendChild(inp);
+    box.appendChild(el("span","val-text","초"));
+  } else if (s.type==="macro"){
+    box.appendChild(macroSelect(s));
+  }
+  return box;
+}
+
+function capture(cmd, extra, cb){
+  const token = String(++reqId); pending[token] = cb;
+  setOverlay(true, extra.hint);
+  send(Object.assign({ cmd, token }, extra));
+}
+function setOverlay(on, hint){
+  const o = $("overlay");
+  if (on){ $("overlayBig").textContent = hint || "대기 중…"; $("overlaySub").textContent = "완료되면 자동으로 닫힙니다"; o.classList.add("show"); }
+  else o.classList.remove("show");
+}
+let toastTimer = null;
+function toast(msg){
+  const t = $("toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 1800);
+}
+
+window.__load = (s) => { buildModel(JSON.parse(s)); render(); requestDetect("auto"); };
+window.__saved = (ok) => toast(ok ? "저장했습니다" : "저장 실패");
+window.__onCapture = (token, value) => { setOverlay(false); const cb = pending[token]; if (cb){ cb(value); delete pending[token]; } };
+window.__detected = (title, w, h) => {
+  if (title === null){ if (detectMode === "button") toast("게임이 실행 중이 아닙니다"); return; }
+  if (detectMode === "button"){ M.title=title; M.sx=w; M.sy=h; render(); toast("감지됨 · "+title+" "+w+"×"+h); }
+  else { M.title=title; if (String(M.sx)==="775" && String(M.sy)==="1377"){ M.sx=w; M.sy=h; } render(); toast("게임 감지됨 · "+title+" "+w+"×"+h); }
+};
+
+$("title").oninput = (e) => M.title = e.target.value;
+$("sx").oninput = (e) => M.sx = e.target.value;
+$("sy").oninput = (e) => M.sy = e.target.value;
+$("switch").onclick = () => capture("captureSwitch", { hint:"전환 키로 쓸 키를 누르세요" }, (v) => { if (v){ M.switch=v; render(); } });
+$("reload").onclick = () => send({ cmd:"load" });
+$("save").onclick = () => send({ cmd:"save", data: toConfigString() });
+$("addRow").onclick = () => { if (M.presets[sel]){ M.presets[sel].rows.push({ key:"", value:"", kind:"color", editing:false }); render(); } };
+$("addMacro").onclick = () => { M.macros.push({ name:"", steps:[] }); render(); };
+$("detect").onclick = () => requestDetect("button");
+
+send({ cmd:"load" });
+</script>
+</body>
+</html>

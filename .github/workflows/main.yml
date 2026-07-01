@@ -9,33 +9,19 @@ jobs:
     outputs:
       version: ${{ steps.extract_version.outputs.version }}
       next_version: ${{ steps.increment_version.outputs.next_version }}
-      
+
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2
-      
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-        architecture: 'x64'
-        
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install nuitka
-      
+      uses: actions/checkout@v4
+
+    - name: Set up Rust
+      uses: dtolnay/rust-toolchain@stable
+
     - name: Build
       run: |
-        cd modules
-        python -m nuitka --windows-uac-admin --standalone  --follow-imports --output-filename=update --assume-yes-for-downloads download.py
-        cd..
-        Copy-Item -Path "$pwd\modules\download.dist\*" -Destination "$pwd\_internal\update\" -Recurse -Force -Confirm:$false
-        python -m nuitka --windows-disable-console --windows-uac-admin --standalone --include-data-dir=_internal/=_internal --include-data-files=_internal/update/*.exe=update/ --include-data-files=_internal/update/*.dll=update/ --include-data-files=_internal/update/*.pyd=update/ --follow-imports --output-filename=UmaKey --enable-plugin=tk-inter main.py
-        Copy-Item -Path "$pwd\Launcher.exe" -Destination "$pwd\main.dist\" -Force -Confirm:$false
-        Compress-Archive -Path ".\main.dist\*" -DestinationPath "UmaKey.zip"
-        
+        cargo build --release
+        Compress-Archive -Path ".\target\release\umakey.exe", ".\config.json" -DestinationPath "UmaKey.zip" -Force
+
     - name: Extract version number
       id: extract_version
       run: |
@@ -52,7 +38,7 @@ jobs:
         $next_version = "v$major.$minor.$next_patch"
         echo "Next tag: $next_version"
         Write-Output "next_version=$next_version" >> $env:GITHUB_OUTPUT
-        
+
     - name: Upload Release Asset
       id: update-release-asset
       uses: softprops/action-gh-release@v1
