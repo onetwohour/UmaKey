@@ -159,6 +159,7 @@ class KeyboardHook:
         self.HOOKPROC = HOOKPROC(self._keyboard_proc)
         self.lock = False
         self.task = None
+        self.key_filter = None
 
     def _keyboard_proc(self, nCode, wParam, lParam):
         if nCode >= 0:
@@ -166,14 +167,14 @@ class KeyboardHook:
                 key_info = ctypes.cast(lParam, ctypes.POINTER(KBDLLHOOKSTRUCT)).contents
                 vk_code = key_info.vkCode
                 extra_info = key_info.dwExtraInfo
-                
-                if self.callback and extra_info == 0:
+
+                if self.callback and extra_info == 0 and (self.key_filter is None or self.key_filter(vk_code)):
                     if not self.lock:
                         self.lock = True
                         self.task = Thread(target=self.callback, args=(vk_code,), daemon=True)
                         self.task.start()
                     return 1
-        
+
         return user32.CallNextHookEx(self.hooked, nCode, wParam, lParam)
 
     def start(self):
@@ -220,6 +221,9 @@ class KeyboardHook:
             self.lock = False
         self.callback = wrapper if func is not None else func
 
+    def register_filter(self, func=None):
+        self.key_filter = func
+
 class AutoClicker:
     def __init__(self, tolerance : float = 10) -> None:
         self.window_handler = WindowHandler()
@@ -255,11 +259,20 @@ class AutoClicker:
         if self.is_run():
             return
         self.__state = 1
-        
+
+        self.keyboard_hook.register_filter(self.is_mapped)
         self.keyboard_hook.start()
 
         self.thread = Thread(target=self.monitor)
         self.thread.start()
+
+    def is_mapped(self, vk: int) -> bool:
+        key = settingLoad.byte_to_key.get(vk)
+        if key is None or self.key_mapping is None:
+            return False
+        if key == settingLoad.key_mapping.get("switch"):
+            return True
+        return settingLoad.key_mapping[self.key_mapping].get(key) is not None
 
     def disable(self):
         self.keyboard_hook.register_callback(None)
