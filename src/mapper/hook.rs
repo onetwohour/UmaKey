@@ -1,5 +1,3 @@
-//! KeyboardHook 이식: WH_KEYBOARD_LL 저수준 훅 + 메시지 루프.
-//! 콜백은 고정 시그니처라 상태를 전역 ENGINE에서 읽는다.
 
 use std::sync::atomic::Ordering;
 use std::thread;

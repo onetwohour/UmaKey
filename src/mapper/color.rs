@@ -1,5 +1,3 @@
-//! ColorFinder 이식: PrintWindow로 창을 캡처하고 색을 찾아 무게중심을 반환.
-//! OpenCV 대신 마스크 + 최대 연결요소 무게중심을 직접 계산한다.
 
 use std::ffi::c_void;
 use windows::Win32::Foundation::HWND;
@@ -22,7 +20,6 @@ impl ColorFinder {
         Self { hwnd }
     }
 
-    /// 창 클라이언트 영역을 BGRA 버퍼로 캡처. (buffer, width, height).
     fn capture(&self) -> Option<(Vec<u8>, i32, i32)> {
         unsafe {
             let mut rect = RECT::default();
@@ -75,7 +72,6 @@ impl ColorFinder {
         }
     }
 
-    /// 대상 색을 찾아 스크린 좌표 무게중심을 반환. 못 찾으면 None.
     pub fn find_color(&self, target: [i32; 3], tolerance: i32) -> Option<(i32, i32)> {
         let (buf, width, height) = self.capture()?;
         let w = width as usize;
@@ -124,7 +120,6 @@ fn clamp_u8(v: i32) -> u8 {
     v.clamp(0, 255) as u8
 }
 
-/// RGB 픽셀이 [lower, upper] 범위 안인지.
 fn in_range(px: [u8; 3], lower: [u8; 3], upper: [u8; 3]) -> bool {
     px[0] >= lower[0]
         && px[0] <= upper[0]
@@ -134,7 +129,6 @@ fn in_range(px: [u8; 3], lower: [u8; 3], upper: [u8; 3]) -> bool {
         && px[2] <= upper[2]
 }
 
-/// 8-연결 최대 blob의 무게중심(col, row). true 픽셀이 없으면 None.
 fn largest_blob_centroid(mask: &[bool], w: usize, h: usize) -> Option<(f64, f64)> {
     let mut visited = vec![false; w * h];
     let mut best_count = 0usize;

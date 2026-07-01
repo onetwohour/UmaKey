@@ -1,4 +1,3 @@
-//! effectGUI.py 이식: 프리셋 전환 시 커서에 확장하는 링 효과 오버레이.
 
 use std::ffi::c_void;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
@@ -48,7 +47,6 @@ fn cursor() -> (i32, i32) {
     }
 }
 
-/// 리플 창을 자체 스레드에서 생성하고 메시지 루프를 돈다.
 pub fn start() {
     thread::spawn(|| unsafe {
         let hinstance = GetModuleHandleW(PCWSTR::null()).unwrap_or_default();
@@ -89,7 +87,6 @@ pub fn start() {
     });
 }
 
-/// 커서 위치에서 링 효과를 시작한다.
 pub fn show() {
     let h = RIPPLE_HWND.load(Ordering::SeqCst);
     if h != 0 {

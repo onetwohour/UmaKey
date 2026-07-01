@@ -1,4 +1,3 @@
-//! settingLoad.py 이식: 가상키 테이블, config.json 로드/업그레이드, 매핑 값 파싱.
 
 use serde_json::Value;
 use std::collections::HashMap;
@@ -7,11 +6,8 @@ use std::sync::OnceLock;
 pub const DEFAULT_WINDOW_TITLE: &str = "umamusume";
 pub const DEFAULT_SCREEN: (i32, i32) = (775, 1377);
 
-/// 신규 설치 시 생성되는 기본 config. 배포본 config.json(v2.0)과 동일하게 유지한다.
 pub const DEFAULT_CONFIG: &str = include_str!("../config.json");
 
-/// (vk, 키 이름) 목록. Python 딕셔너리 리터럴과 동일한 순서로 둔다.
-/// 107→"+", 109→"-"가 앞선 ADD/SUBTRACT를 덮어써 최종 맵에서 ADD/SUBTRACT가 사라지는 동작까지 재현.
 fn raw_table() -> &'static [(u32, &'static str)] {
     &[
         (0x08, "BACKSPACE"), (0x09, "TAB"), (0x0C, "CLEAR"), (0x0D, "ENTER"),
@@ -45,7 +41,6 @@ fn raw_table() -> &'static [(u32, &'static str)] {
     ]
 }
 
-/// vk → 키 이름. 같은 vk의 나중 항목이 앞 항목을 덮어쓴다(107→"+", 109→"-").
 pub fn byte_to_key() -> &'static HashMap<u32, &'static str> {
     static M: OnceLock<HashMap<u32, &'static str>> = OnceLock::new();
     M.get_or_init(|| {
@@ -57,7 +52,6 @@ pub fn byte_to_key() -> &'static HashMap<u32, &'static str> {
     })
 }
 
-/// 키 이름 → vk. 최종 byte_to_key를 역전한 것이라 ADD/SUBTRACT는 포함되지 않는다.
 pub fn key_to_byte() -> &'static HashMap<&'static str, u32> {
     static M: OnceLock<HashMap<&'static str, u32>> = OnceLock::new();
     M.get_or_init(|| {
@@ -69,7 +63,6 @@ pub fn key_to_byte() -> &'static HashMap<&'static str, u32> {
     })
 }
 
-/// 매핑 값 하나. convert_value가 문자열을 이 형태 중 하나로 해석한다.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Action {
     Color([i32; 3]),
@@ -78,7 +71,6 @@ pub enum Action {
     Raw(String),
 }
 
-/// settingLoad.convert_value 이식. 해석에 실패하면 원문을 Raw로 둔다.
 pub fn convert_value(value_str: &str) -> Action {
     let t = value_str.trim();
     if t.starts_with('[') && t.ends_with(']') {
@@ -110,19 +102,13 @@ pub fn convert_value(value_str: &str) -> Action {
     Action::Raw(t.to_string())
 }
 
-/// 로드·파싱이 끝난 설정 상태. Python settingLoad 모듈 전역들에 대응.
 #[derive(Clone, Debug)]
 pub struct Settings {
     pub window_title: String,
-    /// (x, y) — Python ratio.
     pub ratio: (i32, i32),
-    /// key_mapping의 키 순서(“switch” 포함). 프리셋 순환이 이 순서를 따른다.
     pub key_order: Vec<String>,
-    /// 프리셋 이름 → (키 이름 → Action).
     pub presets: HashMap<String, HashMap<String, Action>>,
-    /// "switch" 항목 값(예: "F1").
     pub switch: Option<String>,
-    /// 로드된 원본 JSON. 매크로 정의 조회에 사용(Python `load`).
     pub raw: Value,
 }
 
@@ -131,13 +117,11 @@ impl Settings {
         self.presets.get(name)
     }
 
-    /// 매크로 이름 등 최상위 키의 값을 조회(Python `load.get`).
     pub fn raw_get<'a>(&'a self, key: &str) -> Option<&'a Value> {
         self.raw.get(key)
     }
 }
 
-/// settingLoad.upgrade_config 이식. 1.0 → 2.0 변환 여부를 반환한다.
 fn upgrade(root: &mut Value) -> bool {
     let current = root
         .get("version")
@@ -171,7 +155,6 @@ fn upgrade(root: &mut Value) -> bool {
     true
 }
 
-/// JSON Value를 Settings로 해석. 필요하면 1.0→2.0 업그레이드를 먼저 적용한다.
 pub fn parse(mut root: Value) -> Settings {
     upgrade(&mut root);
 
@@ -221,8 +204,6 @@ pub fn parse(mut root: Value) -> Settings {
     Settings { window_title, ratio, key_order, presets, switch, raw: root }
 }
 
-/// config.json을 읽어 Settings로 로드한다. 파일이 없으면 기본 config를 쓰고,
-/// 1.0→2.0 업그레이드가 발생하면 파일에 다시 저장한다.
 pub fn load_from(path: &str) -> Result<Settings, String> {
     if !std::path::Path::new(path).is_file() {
         std::fs::write(path, DEFAULT_CONFIG).map_err(|e| e.to_string())?;
@@ -241,7 +222,6 @@ pub fn load_from(path: &str) -> Result<Settings, String> {
     Ok(parse(root))
 }
 
-/// chardet 대체: 인코딩을 감지해 UTF-8 문자열로 디코드한다.
 fn decode_bytes(raw: &[u8]) -> String {
     let mut detector = chardetng::EncodingDetector::new();
     detector.feed(raw, true);

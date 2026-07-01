@@ -1,4 +1,3 @@
-//! 마우스·키보드 합성 프리미티브 (press_key/click/keyboard 이식).
 
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     keybd_event, mouse_event, GetKeyState, KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP,
@@ -39,7 +38,6 @@ pub fn mouse_left_up() {
     unsafe { mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0) }
 }
 
-/// 원래 눌린 키를 게임으로 통과시킨다. Ctrl/Shift 상태를 함께 재현한다.
 pub fn press_key(code: u32) {
     unsafe {
         let control = GetKeyState(VK_CONTROL.0 as i32) < 0;
@@ -70,7 +68,6 @@ pub fn press_key(code: u32) {
     }
 }
 
-/// 매핑된 키를 게임에 입력한다. 원본의 누락된 self.keyboard를 대체한다.
 pub fn keyboard(code: u32) {
     unsafe {
         keybd_event(code as u8, 0, Default::default(), SYNTH_EXTRA);

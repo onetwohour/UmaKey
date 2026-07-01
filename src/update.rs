@@ -1,8 +1,6 @@
-//! modules/update.py 이식: GitHub 최신 릴리스 확인.
 
 use serde_json::Value;
 
-/// 최신 릴리스를 조회해 (업데이트 필요 여부, 릴리스 JSON)을 반환.
 pub fn check_new_release(
     owner: &str,
     name: &str,
@@ -27,7 +25,6 @@ pub fn check_new_release(
     }
 }
 
-/// 릴리스 JSON에서 (첫 에셋 다운로드 URL, 태그명)을 추출.
 pub fn release_info(release: &Value) -> (Option<String>, Option<String>) {
     let url = release
         .get("assets")

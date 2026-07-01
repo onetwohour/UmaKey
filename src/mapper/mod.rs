@@ -1,4 +1,3 @@
-//! mapper.py 이식: AutoClicker 상태머신 + 저수준 훅 + 매크로 실행.
 
 pub mod color;
 pub mod hook;
@@ -22,27 +21,22 @@ use crate::settings::{self, byte_to_key, key_to_byte, Action, Settings};
 use color::ColorFinder;
 use window::WindowHandler;
 
-/// 대상 게임 프로세스 이름.
 pub const TARGET_PROCESS: &str = "umamusume.exe";
 
-/// 합성 입력에 싣는 dwExtraInfo. LL 훅은 extra_info != 0 인 입력을 무시한다.
 pub const SYNTH_EXTRA: usize = 3000;
 
 const TOLERANCE: i32 = 10;
 
-/// 훅 콜백(고정 시그니처)이 참조하는 전역 엔진.
 static ENGINE: OnceLock<Arc<AutoClicker>> = OnceLock::new();
 
 pub(crate) fn engine() -> Option<&'static Arc<AutoClicker>> {
     ENGINE.get()
 }
 
-/// &str → 널 종료 UTF-16.
 pub fn wide(s: &str) -> Vec<u16> {
     s.encode_utf16().chain(std::iter::once(0)).collect()
 }
 
-/// 널 종료 UTF-16 슬라이스 → String.
 pub(crate) fn from_wide(buf: &[u16]) -> String {
     let end = buf.iter().position(|&c| c == 0).unwrap_or(buf.len());
     String::from_utf16_lossy(&buf[..end])
@@ -64,11 +58,9 @@ enum Mapped {
     Act(Action),
 }
 
-/// AutoClicker 이식. 상태는 원자값/락으로 스레드 간 공유된다.
 pub struct AutoClicker {
     settings: RwLock<Settings>,
     tolerance: i32,
-    /// 0 대기, 1 시작, 2 실행, -1 오류.
     state: AtomicI32,
     hwnd: AtomicUsize,
     enabled: AtomicBool,
@@ -104,7 +96,6 @@ impl AutoClicker {
         })
     }
 
-    /// 훅 콜백이 찾을 수 있도록 전역 엔진으로 등록한다.
     pub fn install(self: &Arc<Self>) {
         let _ = ENGINE.set(self.clone());
     }
@@ -200,7 +191,6 @@ impl AutoClicker {
         }
     }
 
-    /// 매크로 문자열을 Action 목록으로 토큰화한다(settingLoad decode 이식).
     fn decode(&self, name: &str) -> Vec<Action> {
         let settings = self.settings.read().unwrap();
         let text = match settings.raw_get(name).and_then(|v| v.as_str()) {
@@ -216,10 +206,7 @@ impl AutoClicker {
             if tok.starts_with('(') {
                 let nums = parse_ints(&tok[1..tok.len() - 1]);
                 if let Some(Action::Raw(last)) = keys.last_mut() {
-                    if last.starts_with("drag")
-                        && last.matches('(').count() < 2
-                        && nums.len() == 2
-                    {
+                    if last.starts_with("drag") && nums.len() == 2 {
                         last.push_str(&format!(" ({}, {})", nums[0], nums[1]));
                         continue;
                     }
@@ -248,7 +235,6 @@ impl AutoClicker {
         keys
     }
 
-    /// 단일 Action 실행(macro 이식).
     fn run_action(&self, act: &Action) {
         match act {
             Action::Color(c) => {
@@ -313,7 +299,7 @@ impl AutoClicker {
     }
 
     fn drag(&self, pos: &str) {
-        let points: Vec<(i32, i32)> = drag_re()
+        let raw: Vec<(i32, i32)> = drag_re()
             .captures_iter(pos)
             .filter_map(|c| {
                 let a = c.get(1)?.as_str().parse::<i32>().ok()?;
@@ -321,67 +307,50 @@ impl AutoClicker {
                 Some((a, b))
             })
             .collect();
-        if points.len() != 2 {
+        if raw.len() < 2 {
             return;
         }
-        let (mut x1, mut y1) = points[0];
-        let (mut x2, mut y2) = points[1];
 
         let (left, top, right, bottom) = self.window().get_window_position();
-        if (x1, y1) == (-1, -1) {
-            let (cx, cy) = input::get_cursor_pos();
-            if !(left + 20 <= cx && cx <= right - 20 && top + 60 <= cy && cy <= bottom - 20) {
-                return;
-            }
-            x1 = cx;
-            y1 = cy;
-        }
-        if (x2, y2) == (-1, -1) {
-            let (cx, cy) = input::get_cursor_pos();
-            if !(left + 20 <= cx && cx <= right - 20 && top + 60 <= cy && cy <= bottom - 20) {
-                return;
-            }
-            x2 = cx;
-            y2 = cy;
-        }
-
         let ratio = self.settings.read().unwrap().ratio;
         let width = (right - left) as f64;
         let height = (bottom - top) as f64;
-        let mut x1 = (x1 as f64 * (width / ratio.0 as f64) + left as f64) as i32;
-        let mut y1 = (y1 as f64 * (height / ratio.1 as f64) + top as f64) as i32;
-        let x2 = (x2 as f64 * (width / ratio.0 as f64) + left as f64) as i32;
-        let y2 = (y2 as f64 * (height / ratio.1 as f64) + top as f64) as i32;
         let (l, t, r, b) = (left + 20, top + 60, right - 20, bottom - 20);
-        x1 = x1.clamp(l, r);
-        y1 = y1.clamp(t, b);
-        let x2 = x2.clamp(l, r);
-        let y2 = y2.clamp(t, b);
+        let pts: Vec<(i32, i32)> = raw
+            .iter()
+            .map(|&(x, y)| {
+                let sx = (x as f64 * (width / ratio.0 as f64) + left as f64) as i32;
+                let sy = (y as f64 * (height / ratio.1 as f64) + top as f64) as i32;
+                (sx.clamp(l, r), sy.clamp(t, b))
+            })
+            .collect();
 
-        let distance = ((x1 - x2).abs() as f64 / 20.0)
-            .max((y1 - y2).abs() as f64 / 20.0)
-            .max(1.0)
-            .min(40.0);
-
-        if (x1, y1) == (x2, y2) {
-            input::click(x1, y1);
-            return;
-        }
-
-        input::set_cursor_pos(x1, y1);
+        input::set_cursor_pos(pts[0].0, pts[0].1);
         input::mouse_left_down();
         thread::sleep(Duration::from_millis(10));
-        let dx = (x2 - x1) as f64 / distance;
-        let dy = (y2 - y1) as f64 / distance;
-        let mut fx = x1 as f64;
-        let mut fy = y1 as f64;
-        for _ in 0..(distance as i32) {
-            fx += dx;
-            fy += dy;
-            input::set_cursor_pos(fx as i32, fy as i32);
-            thread::sleep(Duration::from_millis(15));
+
+        let mut cur = pts[0];
+        for &next in &pts[1..] {
+            if cur == next {
+                continue;
+            }
+            let distance = ((cur.0 - next.0).abs() as f64 / 20.0)
+                .max((cur.1 - next.1).abs() as f64 / 20.0)
+                .max(1.0)
+                .min(40.0);
+            let dx = (next.0 - cur.0) as f64 / distance;
+            let dy = (next.1 - cur.1) as f64 / distance;
+            let mut fx = cur.0 as f64;
+            let mut fy = cur.1 as f64;
+            for _ in 0..(distance as i32) {
+                fx += dx;
+                fy += dy;
+                input::set_cursor_pos(fx as i32, fy as i32);
+                thread::sleep(Duration::from_millis(15));
+            }
+            input::set_cursor_pos(next.0, next.1);
+            cur = next;
         }
-        input::set_cursor_pos(x2, y2);
         input::mouse_left_up();
     }
 
@@ -429,6 +398,36 @@ impl AutoClicker {
         } else {
             self.destroy();
         }
+    }
+
+    pub fn reload(&self) {
+        let s = match settings::load_from("config.json") {
+            Ok(s) => s,
+            Err(_) => return,
+        };
+        let title_changed = self.settings.read().unwrap().window_title != s.window_title;
+        let len = s.key_order.len();
+        *self.settings.write().unwrap() = s;
+        if title_changed {
+            self.set_hwnd(HWND(std::ptr::null_mut()));
+        }
+        if len == 0 {
+            return;
+        }
+        let mut idx = self.preset_index.load(Ordering::SeqCst);
+        if idx >= len {
+            idx = 0;
+            self.preset_index.store(0, Ordering::SeqCst);
+        }
+        let name = self
+            .settings
+            .read()
+            .unwrap()
+            .key_order
+            .get(idx)
+            .cloned()
+            .unwrap_or_default();
+        *self.current_preset.lock().unwrap() = name;
     }
 
     fn run(self: &Arc<Self>) {

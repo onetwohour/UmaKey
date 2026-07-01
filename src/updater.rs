@@ -1,5 +1,3 @@
-//! download.py 이식 + 자기 교체. 별도 exe 없이 umakey.exe 하나로 업데이트한다.
-//! 업데이트 시 자신을 %TEMP%로 복사해 실행하고, 복사본 옆 마커 파일로 모드를 판별한다.
 
 use std::fs;
 use std::io::{self, Read};
@@ -25,7 +23,6 @@ pub struct UpdateParams {
     exclude: Vec<String>,
 }
 
-/// 현재 exe 옆에 마커가 있으면 업데이트 모드로 간주하고 파라미터를 읽는다.
 pub fn is_update_mode() -> Option<UpdateParams> {
     let exe = std::env::current_exe().ok()?;
     let marker = exe.parent()?.join(MARKER);
@@ -33,7 +30,44 @@ pub fn is_update_mode() -> Option<UpdateParams> {
     serde_json::from_str(&text).ok()
 }
 
-/// 자신을 %TEMP%로 복사하고 마커를 남긴 뒤 실행한다(호출한 쪽은 종료해야 함).
+pub fn cleanup_legacy() {
+    if let Some(dir) = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.to_path_buf()))
+    {
+        cleanup_dir(&dir);
+    }
+}
+
+fn cleanup_dir(dir: &Path) {
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() && is_python_leftover(&entry.file_name().to_string_lossy()) {
+                let _ = fs::remove_file(&path);
+            }
+        }
+    }
+    for d in ["_internal", "tk", "update"] {
+        let _ = fs::remove_dir_all(dir.join(d));
+    }
+}
+
+fn is_python_leftover(name: &str) -> bool {
+    let n = name.to_ascii_lowercase();
+    n.ends_with(".pyd")
+        || (n.starts_with("python3") && n.ends_with(".dll"))
+        || n == "launcher.exe"
+        || n == "tcl86t.dll"
+        || n == "tk86t.dll"
+        || (n.starts_with("libcrypto") && n.ends_with(".dll"))
+        || (n.starts_with("libssl") && n.ends_with(".dll"))
+        || (n.starts_with("libffi") && n.ends_with(".dll"))
+        || (n.starts_with("vcruntime") && n.ends_with(".dll"))
+        || n == "ucrtbase.dll"
+        || (n.starts_with("api-ms-win") && n.ends_with(".dll"))
+}
+
 pub fn launch_update(zip_url: String, install_dir: String, exclude: Vec<String>) {
     let current = match std::env::current_exe() {
         Ok(p) => p,
@@ -58,7 +92,6 @@ pub fn launch_update(zip_url: String, install_dir: String, exclude: Vec<String>)
     let _ = Command::new(&dst_exe).current_dir(&temp).spawn();
 }
 
-/// 업데이트 모드 본체: 다운로드→적용→재실행.
 pub fn run_update(params: UpdateParams) {
     let install_dir = PathBuf::from(&params.install_dir);
     let payload = std::env::current_exe()
@@ -247,5 +280,219 @@ fn message_box(title: &str, message: &str) {
             PCWSTR(caption.as_ptr()),
             MB_ICONWARNING | MB_TOPMOST,
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+    use std::net::TcpListener;
+
+    fn tmp(name: &str) -> PathBuf {
+        let d = std::env::temp_dir().join(format!("umakey_test_{}_{}", std::process::id(), name));
+        let _ = fs::remove_dir_all(&d);
+        fs::create_dir_all(&d).unwrap();
+        d
+    }
+
+    fn make_zip(entries: &[(&str, &[u8])]) -> Vec<u8> {
+        let mut buf = Vec::new();
+        {
+            let mut w = zip::ZipWriter::new(io::Cursor::new(&mut buf));
+            let opts = zip::write::SimpleFileOptions::default();
+            for (name, content) in entries {
+                w.start_file(*name, opts).unwrap();
+                w.write_all(content).unwrap();
+            }
+            w.finish().unwrap();
+        }
+        buf
+    }
+
+    fn serve_zip(zip: Vec<u8>) -> u16 {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        std::thread::spawn(move || {
+            for stream in listener.incoming() {
+                let mut stream = match stream {
+                    Ok(s) => s,
+                    Err(_) => break,
+                };
+                let mut buf = [0u8; 2048];
+                let _ = std::io::Read::read(&mut stream, &mut buf);
+                let header = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nContent-Type: application/zip\r\nConnection: close\r\n\r\n",
+                    zip.len()
+                );
+                let _ = stream.write_all(header.as_bytes());
+                let _ = stream.write_all(&zip);
+                let _ = stream.flush();
+            }
+        });
+        port
+    }
+
+    #[test]
+    fn hash_matches_known_sha256() {
+        let d = tmp("hash");
+        let f = d.join("a.txt");
+        fs::write(&f, b"hello").unwrap();
+        assert_eq!(
+            file_hash(&f).unwrap(),
+            "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+        );
+        let _ = fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn downloads_and_extracts_zip() {
+        let zip = make_zip(&[("umakey.exe", b"NEW EXE"), ("config.json", b"{\"a\":1}")]);
+        let port = serve_zip(zip);
+        let dst = tmp("dl");
+        download_and_extract(&format!("http://127.0.0.1:{port}/Umakey.zip"), &dst).unwrap();
+        assert_eq!(fs::read(dst.join("umakey.exe")).unwrap(), b"NEW EXE");
+        assert_eq!(fs::read_to_string(dst.join("config.json")).unwrap(), "{\"a\":1}");
+        let _ = fs::remove_dir_all(&dst);
+    }
+
+    #[test]
+    fn apply_preserves_config_and_updates_rest() {
+        let install = tmp("apply_install");
+        let payload = tmp("apply_payload");
+        fs::write(install.join("config.json"), b"USER CONFIG").unwrap();
+        fs::write(install.join("umakey.exe"), b"OLD EXE").unwrap();
+        fs::write(install.join("same.txt"), b"SAME").unwrap();
+        fs::write(payload.join("config.json"), b"DEFAULT CONFIG").unwrap();
+        fs::write(payload.join("umakey.exe"), b"NEW EXE").unwrap();
+        fs::write(payload.join("same.txt"), b"SAME").unwrap();
+        fs::write(payload.join("new.txt"), b"NEW FILE").unwrap();
+
+        apply_files(&install, &payload, &["config.json".to_string()]).unwrap();
+
+        assert_eq!(fs::read(install.join("config.json")).unwrap(), b"USER CONFIG");
+        assert_eq!(fs::read(install.join("umakey.exe")).unwrap(), b"NEW EXE");
+        assert_eq!(fs::read(install.join("same.txt")).unwrap(), b"SAME");
+        assert_eq!(fs::read(install.join("new.txt")).unwrap(), b"NEW FILE");
+        let _ = fs::remove_dir_all(&install);
+        let _ = fs::remove_dir_all(&payload);
+    }
+
+    #[test]
+    fn removes_dirs_absent_from_payload() {
+        let install = tmp("stale_install");
+        let payload = tmp("stale_payload");
+        fs::create_dir_all(install.join("keep")).unwrap();
+        fs::create_dir_all(install.join("stale")).unwrap();
+        fs::write(install.join("stale").join("x.txt"), b"x").unwrap();
+        fs::create_dir_all(payload.join("keep")).unwrap();
+
+        remove_stale_dirs(&install, &payload);
+
+        assert!(install.join("keep").exists());
+        assert!(!install.join("stale").exists());
+        let _ = fs::remove_dir_all(&install);
+        let _ = fs::remove_dir_all(&payload);
+    }
+
+    #[test]
+    fn full_download_to_apply_flow() {
+        let zip = make_zip(&[
+            ("umakey.exe", b"NEW EXE"),
+            ("config.json", b"DEFAULT"),
+            ("data/lib.dat", b"NEWLIB"),
+        ]);
+        let port = serve_zip(zip);
+        let install = tmp("flow_install");
+        let payload = tmp("flow_payload");
+        fs::write(install.join("config.json"), b"USER CONFIG").unwrap();
+        fs::write(install.join("umakey.exe"), b"OLD EXE").unwrap();
+
+        download_and_extract(&format!("http://127.0.0.1:{port}/x.zip"), &payload).unwrap();
+        remove_stale_dirs(&install, &payload);
+        apply_files(&install, &payload, &["config.json".to_string()]).unwrap();
+
+        assert_eq!(fs::read(install.join("config.json")).unwrap(), b"USER CONFIG");
+        assert_eq!(fs::read(install.join("umakey.exe")).unwrap(), b"NEW EXE");
+        assert_eq!(fs::read(install.join("data").join("lib.dat")).unwrap(), b"NEWLIB");
+        let _ = fs::remove_dir_all(&install);
+        let _ = fs::remove_dir_all(&payload);
+    }
+
+    #[test]
+    fn cleanup_removes_python_leftovers_keeps_rest() {
+        let d = tmp("cleanup");
+        fs::write(d.join("UmaKey.exe"), b"RUST").unwrap();
+        fs::write(d.join("config.json"), b"cfg").unwrap();
+        fs::write(d.join("vcruntime140.dll"), b"vc").unwrap();
+        fs::write(d.join("vcruntime140_1.dll"), b"vc").unwrap();
+        fs::write(d.join("ucrtbase.dll"), b"u").unwrap();
+        fs::write(d.join("api-ms-win-crt-runtime-l1-1-0.dll"), b"a").unwrap();
+        fs::write(d.join("python311.dll"), b"x").unwrap();
+        fs::write(d.join("win32api.pyd"), b"x").unwrap();
+        fs::write(d.join("Launcher.exe"), b"x").unwrap();
+        fs::write(d.join("libcrypto-3.dll"), b"x").unwrap();
+        fs::create_dir_all(d.join("_internal")).unwrap();
+        fs::write(d.join("_internal").join("UmaKey.ico"), b"x").unwrap();
+        fs::create_dir_all(d.join("update")).unwrap();
+        fs::write(d.join("update").join("update.exe"), b"x").unwrap();
+
+        cleanup_dir(&d);
+
+        assert!(d.join("UmaKey.exe").exists());
+        assert!(d.join("config.json").exists());
+        assert!(!d.join("vcruntime140.dll").exists());
+        assert!(!d.join("vcruntime140_1.dll").exists());
+        assert!(!d.join("ucrtbase.dll").exists());
+        assert!(!d.join("api-ms-win-crt-runtime-l1-1-0.dll").exists());
+        assert!(!d.join("python311.dll").exists());
+        assert!(!d.join("win32api.pyd").exists());
+        assert!(!d.join("Launcher.exe").exists());
+        assert!(!d.join("libcrypto-3.dll").exists());
+        assert!(!d.join("_internal").exists());
+        assert!(!d.join("update").exists());
+        let _ = fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    #[ignore]
+    fn real_github_release_download_and_apply() {
+        let (download, release) = crate::update::check_new_release("onetwohour", "UmaKey", "v0.0.0");
+        assert!(download, "v0.0.0보다 최신 릴리스가 있어야 함");
+        let release = release.unwrap();
+        let (url, tag) = crate::update::release_info(&release);
+        let url = url.expect("에셋 URL");
+        eprintln!("[release] tag={:?}", tag);
+        eprintln!("[asset]   {url}");
+
+        let payload = tmp("real_payload");
+        download_and_extract(&url, &payload).unwrap();
+
+        let mut names: Vec<String> = walk_files(&payload)
+            .iter()
+            .filter_map(|p| p.strip_prefix(&payload).ok().map(|r| r.to_string_lossy().replace('\\', "/")))
+            .collect();
+        names.sort();
+        eprintln!("[extracted] {} files", names.len());
+        for n in &names {
+            eprintln!("  {n}");
+        }
+
+        let install = tmp("real_install");
+        fs::write(install.join("config.json"), b"USER CONFIG").unwrap();
+        remove_stale_dirs(&install, &payload);
+        apply_files(&install, &payload, &["config.json".to_string()]).unwrap();
+
+        assert_eq!(
+            fs::read(install.join("config.json")).unwrap(),
+            b"USER CONFIG",
+            "config.json이 보존돼야 함"
+        );
+        let applied = walk_files(&install).len();
+        eprintln!("[install] 적용 후 파일 {applied}개");
+        assert!(applied > 1, "설치 폴더에 파일이 적용돼야 함");
+
+        let _ = fs::remove_dir_all(&payload);
+        let _ = fs::remove_dir_all(&install);
     }
 }

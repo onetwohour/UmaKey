@@ -1,5 +1,3 @@
-//! 설정 에디터. 트레이에서 호출되어 백그라운드 스레드에서 WebView(HTML/CSS) 창을 연다.
-//! UI는 웹뷰가, 화면 집기·키 입력은 Rust(Win32)가 담당하고 IPC로 주고받는다.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
@@ -36,15 +34,11 @@ const CONFIG_PATH: &str = "config.json";
 
 static OPEN: AtomicBool = AtomicBool::new(false);
 
-/// 웹뷰 → 이벤트 루프로 전달되는 사용자 이벤트.
 enum UserEvent {
-    /// 웹뷰(JS)에서 온 IPC 메시지.
     Ipc(String),
-    /// 캡처 스레드가 요청한 JS 실행.
     Eval(String),
 }
 
-/// 에디터 창을 연다. 이미 열려 있으면 무시한다.
 pub fn open() {
     if OPEN.swap(true, Ordering::SeqCst) {
         return;
@@ -104,6 +98,9 @@ fn handle_ipc(webview: &WebView, proxy: &EventLoopProxy<UserEvent>, msg: &str) {
     };
     match v.get("cmd").and_then(|c| c.as_str()).unwrap_or("") {
         "load" => {
+            if let Some(eng) = crate::mapper::engine() {
+                eng.reload();
+            }
             let text = std::fs::read_to_string(CONFIG_PATH)
                 .unwrap_or_else(|_| crate::settings::DEFAULT_CONFIG.to_string());
             let js = format!("window.__load({})", json_str(&text));
@@ -115,6 +112,11 @@ fn handle_ipc(webview: &WebView, proxy: &EventLoopProxy<UserEvent>, msg: &str) {
                 .and_then(|d| d.as_str())
                 .map(|data| std::fs::write(CONFIG_PATH, data).is_ok())
                 .unwrap_or(false);
+            if ok {
+                if let Some(eng) = crate::mapper::engine() {
+                    eng.reload();
+                }
+            }
             let _ = webview.evaluate_script(&format!("window.__saved({ok})"));
         }
         "detect" => {
@@ -167,7 +169,6 @@ fn str_of(v: &Value, key: &str) -> String {
     v.get(key).and_then(|s| s.as_str()).unwrap_or("").to_string()
 }
 
-/// 문자열을 JS 리터럴로 안전하게 인코딩.
 fn json_str(s: &str) -> String {
     serde_json::to_string(s).unwrap_or_else(|_| "\"\"".to_string())
 }
@@ -218,7 +219,6 @@ fn find_pid(name: &str) -> Option<u32> {
     }
 }
 
-/// 실행 중인 게임 창의 (제목, 클라이언트 너비, 높이). 없으면 None.
 fn detect_game() -> Option<(String, i32, i32)> {
     let pid = find_pid(TARGET_PROCESS)?;
     let mut ctx = DetectCtx { pid, hwnd: None };
@@ -245,7 +245,6 @@ fn pressed(vk: u32) -> bool {
     unsafe { (GetAsyncKeyState(vk as i32) as u16 & 0x8000) != 0 }
 }
 
-/// 다음에 눌리는 키의 이름을 반환. 마우스 버튼은 테이블에 없어 자동 제외된다.
 fn capture_key() -> String {
     let table = byte_to_key();
     while table.keys().any(|&vk| pressed(vk)) {
@@ -334,9 +333,68 @@ fn capture_pos(title: &str, sx: i32, sy: i32) -> Option<String> {
 }
 
 fn capture_drag(title: &str, sx: i32, sy: i32) -> Option<String> {
-    let (x1, y1) = wait_click();
-    let (rx1, ry1) = to_reference(x1, y1, title, sx, sy)?;
-    let (x2, y2) = wait_click();
-    let (rx2, ry2) = to_reference(x2, y2, title, sx, sy)?;
-    Some(format!("drag ({rx1}, {ry1}) ({rx2}, {ry2})"))
+    while pressed(VK_LBUTTON.0 as u32) {
+        thread::sleep(Duration::from_millis(10));
+    }
+    while !pressed(VK_LBUTTON.0 as u32) {
+        thread::sleep(Duration::from_millis(10));
+    }
+
+    crate::trail::start();
+    let mut path: Vec<(i32, i32)> = Vec::new();
+    let mut last = cap_cursor();
+    path.push(last);
+    crate::trail::push(last.0, last.1);
+
+    while pressed(VK_LBUTTON.0 as u32) {
+        let p = cap_cursor();
+        let (dx, dy) = (p.0 - last.0, p.1 - last.1);
+        if dx * dx + dy * dy >= 64 {
+            path.push(p);
+            crate::trail::push(p.0, p.1);
+            last = p;
+            if path.len() >= 400 {
+                break;
+            }
+        }
+        thread::sleep(Duration::from_millis(10));
+    }
+    let end = cap_cursor();
+    if end != last {
+        path.push(end);
+    }
+    crate::trail::stop();
+
+    let path = downsample(path, 48);
+    let pts: Vec<(i32, i32)> = path
+        .iter()
+        .filter_map(|&(x, y)| to_reference(x, y, title, sx, sy))
+        .collect();
+    if pts.len() < 2 {
+        return None;
+    }
+    let body = pts
+        .iter()
+        .map(|(x, y)| format!("({x}, {y})"))
+        .collect::<Vec<_>>()
+        .join(" ");
+    Some(format!("drag {body}"))
+}
+
+fn downsample(path: Vec<(i32, i32)>, max: usize) -> Vec<(i32, i32)> {
+    if path.len() <= max {
+        return path;
+    }
+    let step = path.len() as f64 / max as f64;
+    let mut out = Vec::with_capacity(max + 1);
+    let mut i = 0.0;
+    while (i as usize) < path.len() {
+        out.push(path[i as usize]);
+        i += step;
+    }
+    let last = *path.last().unwrap();
+    if out.last() != Some(&last) {
+        out.push(last);
+    }
+    out
 }

@@ -1,4 +1,3 @@
-//! main.py의 트레이 아이콘·메뉴·생명주기 이식(pystray 대체, Win32 Shell_NotifyIcon 직접).
 
 use std::ffi::c_void;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
@@ -41,7 +40,6 @@ fn app() -> &'static App {
 
 pub struct App {
     clicker: Arc<AutoClicker>,
-    /// text=='중지'(실행 중) 상태.
     running: AtomicBool,
     download: bool,
     release_url: Option<String>,
@@ -102,7 +100,6 @@ fn error_check() {
     }
 }
 
-/// 앱 상태를 등록하고 트레이 창/아이콘을 만든 뒤 메시지 루프를 돈다.
 pub fn run(
     clicker: Arc<AutoClicker>,
     download: bool,
@@ -229,7 +226,6 @@ unsafe fn show_menu(hwnd: HWND) {
     let _ = PostMessageW(hwnd, 0, WPARAM(0), LPARAM(0));
     let _ = DestroyMenu(menu);
 }
-
 
 static ICON_BYTES: &[u8] = include_bytes!("../UmaKey.ico");
 

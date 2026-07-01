@@ -16,7 +16,6 @@ const VERSION: &str = "v1.3.3";
 
 static INSTANCE_MUTEX: OnceLock<usize> = OnceLock::new();
 
-/// named Mutex로 단일 인스턴스를 보장. 이미 실행 중이면 true.
 fn already_running() -> bool {
     let name = mapper::wide("UmaKey");
     unsafe {
@@ -29,7 +28,6 @@ fn already_running() -> bool {
     }
 }
 
-/// 현재 폴더를 Windows Defender 예외 경로로 등록(원본 동작 유지).
 fn add_defender_exclusion() {
     let cwd = std::env::current_dir().unwrap_or_default();
     let cmd = format!("Add-MpPreference -ExclusionPath \"{}\"", cwd.display());
@@ -59,6 +57,7 @@ fn main() {
     if already_running() {
         std::process::exit(0);
     }
+    updater::cleanup_legacy();
     add_defender_exclusion();
 
     let (download, release) = update::check_new_release("onetwohour", "UmaKey", VERSION);

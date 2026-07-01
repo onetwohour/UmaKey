@@ -1,4 +1,3 @@
-//! WindowHandler 이식: 게임 창 탐색·활성화·위치 조회.
 
 use std::thread;
 use std::time::Duration;
@@ -125,7 +124,6 @@ impl WindowHandler {
         }
     }
 
-    /// (left, top, right, bottom) — 게임 클라이언트 영역의 스크린 좌표.
     pub fn get_window_position(&self) -> (i32, i32, i32, i32) {
         unsafe {
             let mut rect = RECT::default();

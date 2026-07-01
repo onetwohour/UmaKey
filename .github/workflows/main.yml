@@ -20,7 +20,8 @@ jobs:
     - name: Build
       run: |
         cargo build --release
-        Compress-Archive -Path ".\target\release\umakey.exe", ".\config.json" -DestinationPath "UmaKey.zip" -Force
+        Copy-Item ".\target\release\umakey.exe" ".\UmaKey.exe" -Force
+        Compress-Archive -Path ".\UmaKey.exe", ".\config.json" -DestinationPath "UmaKey.zip" -Force
 
     - name: Extract version number
       id: extract_version
