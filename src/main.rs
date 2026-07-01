@@ -55,6 +55,7 @@ fn main() {
         let _ = SetProcessDpiAwareness(PROCESS_SYSTEM_DPI_AWARE);
     }
     if already_running() {
+        tray::message_box("UmaKey", "UmaKey가 이미 실행 중입니다.");
         std::process::exit(0);
     }
     updater::cleanup_legacy();

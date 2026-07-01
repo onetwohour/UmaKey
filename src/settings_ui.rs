@@ -10,7 +10,7 @@ use tao::event_loop::{ControlFlow, EventLoopBuilder, EventLoopProxy};
 use tao::platform::run_return::EventLoopExtRunReturn;
 use tao::platform::windows::EventLoopBuilderExtWindows;
 use tao::window::WindowBuilder;
-use wry::{WebView, WebViewBuilder};
+use wry::{WebContext, WebView, WebViewBuilder};
 
 use windows::core::PCWSTR;
 use windows::Win32::Foundation::{CloseHandle, BOOL, HWND, LPARAM, POINT, RECT};
@@ -64,8 +64,9 @@ fn run() {
         Err(_) => return,
     };
 
+    let mut web_context = WebContext::new(Some(webview_data_dir()));
     let ipc_proxy = proxy.clone();
-    let webview = match WebViewBuilder::new()
+    let webview = match WebViewBuilder::new_with_web_context(&mut web_context)
         .with_html(HTML)
         .with_ipc_handler(move |req| {
             let _ = ipc_proxy.send_event(UserEvent::Ipc(req.into_body()));
@@ -89,6 +90,15 @@ fn run() {
             _ => {}
         }
     });
+}
+
+fn webview_data_dir() -> std::path::PathBuf {
+    let dir = std::env::var_os("LOCALAPPDATA")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(std::env::temp_dir)
+        .join("UmaKey");
+    let _ = std::fs::create_dir_all(&dir);
+    dir
 }
 
 fn handle_ipc(webview: &WebView, proxy: &EventLoopProxy<UserEvent>, msg: &str) {
