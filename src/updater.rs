@@ -48,7 +48,10 @@ fn cleanup_dir(dir: &Path) {
             }
         }
     }
-    for d in ["_internal", "tk", "update"] {
+    for d in [
+        "_internal", "tk", "tcl", "tcl8", "update", "cv2", "numpy", "numpy.libs", "PIL",
+        "psutil",
+    ] {
         let _ = fs::remove_dir_all(dir.join(d));
     }
 }
@@ -64,6 +67,9 @@ fn is_python_leftover(name: &str) -> bool {
         || (n.starts_with("libssl") && n.ends_with(".dll"))
         || (n.starts_with("libffi") && n.ends_with(".dll"))
         || (n.starts_with("vcruntime") && n.ends_with(".dll"))
+        || (n.starts_with("pythoncom") && n.ends_with(".dll"))
+        || (n.starts_with("pywintypes") && n.ends_with(".dll"))
+        || (n.starts_with("mfc140") && n.ends_with(".dll"))
         || n == "ucrtbase.dll"
         || (n.starts_with("api-ms-win") && n.ends_with(".dll"))
 }
@@ -429,6 +435,9 @@ mod tests {
         fs::write(d.join("ucrtbase.dll"), b"u").unwrap();
         fs::write(d.join("api-ms-win-crt-runtime-l1-1-0.dll"), b"a").unwrap();
         fs::write(d.join("python311.dll"), b"x").unwrap();
+        fs::write(d.join("pythoncom311.dll"), b"x").unwrap();
+        fs::write(d.join("pywintypes311.dll"), b"x").unwrap();
+        fs::write(d.join("mfc140u.dll"), b"x").unwrap();
         fs::write(d.join("win32api.pyd"), b"x").unwrap();
         fs::write(d.join("Launcher.exe"), b"x").unwrap();
         fs::write(d.join("libcrypto-3.dll"), b"x").unwrap();
@@ -436,6 +445,10 @@ mod tests {
         fs::write(d.join("_internal").join("UmaKey.ico"), b"x").unwrap();
         fs::create_dir_all(d.join("update")).unwrap();
         fs::write(d.join("update").join("update.exe"), b"x").unwrap();
+        fs::create_dir_all(d.join("cv2")).unwrap();
+        fs::write(d.join("cv2").join("cv2.pyd"), b"x").unwrap();
+        fs::create_dir_all(d.join("numpy")).unwrap();
+        fs::write(d.join("numpy").join("_core.dll"), b"x").unwrap();
 
         cleanup_dir(&d);
 
@@ -446,11 +459,16 @@ mod tests {
         assert!(!d.join("ucrtbase.dll").exists());
         assert!(!d.join("api-ms-win-crt-runtime-l1-1-0.dll").exists());
         assert!(!d.join("python311.dll").exists());
+        assert!(!d.join("pythoncom311.dll").exists());
+        assert!(!d.join("pywintypes311.dll").exists());
+        assert!(!d.join("mfc140u.dll").exists());
         assert!(!d.join("win32api.pyd").exists());
         assert!(!d.join("Launcher.exe").exists());
         assert!(!d.join("libcrypto-3.dll").exists());
         assert!(!d.join("_internal").exists());
         assert!(!d.join("update").exists());
+        assert!(!d.join("cv2").exists());
+        assert!(!d.join("numpy").exists());
         let _ = fs::remove_dir_all(&d);
     }
 

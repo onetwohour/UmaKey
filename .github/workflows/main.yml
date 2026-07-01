@@ -34,4 +34,4 @@ jobs:
         tag_name: ${{ steps.version.outputs.tag }}
         files: |
           ./UmaKey.zip
-        prerelease: true
+        prerelease: false
