@@ -6,10 +6,6 @@ on:
 jobs:
   deploy:
     runs-on: windows-latest
-    outputs:
-      version: ${{ steps.extract_version.outputs.version }}
-      next_version: ${{ steps.increment_version.outputs.next_version }}
-
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -23,30 +19,19 @@ jobs:
         Copy-Item ".\target\release\umakey.exe" ".\UmaKey.exe" -Force
         Compress-Archive -Path ".\UmaKey.exe", ".\config.json" -DestinationPath "UmaKey.zip" -Force
 
-    - name: Extract version number
-      id: extract_version
+    - name: Read version from Cargo.toml
+      id: version
       run: |
-        $version = (Invoke-RestMethod -Uri "https://api.github.com/repos/${{ github.repository }}/releases/latest" | Select-Object -ExpandProperty tag_name)
-        Write-Output 'Latest tag: $version'
-        Write-Output "version=$version" >> $env:GITHUB_OUTPUT
-
-    - name: Increment version number
-      id: increment_version
-      run: |
-        $version = "${{ steps.extract_version.outputs.version }}"
-        $major, $minor, $patch = $version.Replace('v', '').Split(".")
-        $next_patch = [int]$patch + 1
-        $next_version = "v$major.$minor.$next_patch"
-        echo "Next tag: $next_version"
-        Write-Output "next_version=$next_version" >> $env:GITHUB_OUTPUT
+        $ver = (Select-String -Path Cargo.toml -Pattern '^version = "(.+)"' | Select-Object -First 1).Matches[0].Groups[1].Value
+        echo "Tag: v$ver"
+        Write-Output "tag=v$ver" >> $env:GITHUB_OUTPUT
 
     - name: Upload Release Asset
-      id: update-release-asset
       uses: softprops/action-gh-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.TOKEN }}
       with:
-        tag_name: ${{ steps.increment_version.outputs.next_version }}
+        tag_name: ${{ steps.version.outputs.tag }}
         files: |
           ./UmaKey.zip
         prerelease: true

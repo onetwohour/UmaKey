@@ -12,7 +12,7 @@ use windows::Win32::UI::WindowsAndMessaging::SW_HIDE;
 use umakey::mapper::{self, AutoClicker};
 use umakey::{effect, tray, update, updater};
 
-const VERSION: &str = "v1.3.3";
+const VERSION: &str = concat!("v", env!("CARGO_PKG_VERSION"));
 
 static INSTANCE_MUTEX: OnceLock<usize> = OnceLock::new();
 
